@@ -1,0 +1,242 @@
+import React, { useEffect, useState } from 'react';
+import { useApi } from '../hooks/useApi';
+
+type AssetClass = 'STOCK' | 'OPTION' | 'FUTURE' | 'FOREX' | 'CRYPTO';
+
+interface FeeRow { assetClass: AssetClass; mode: 'PER_CONTRACT_DOLLAR' | 'PER_CONTRACT_PERCENT'; value: number; }
+
+interface Transaction { id: string; createdAt: string; type: 'DEPOSIT'|'WITHDRAWAL'; amount: number; currency: string; }
+
+const assetClasses: AssetClass[] = ['STOCK','OPTION','FUTURE','FOREX','CRYPTO'];
+
+export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId }) => {
+  const api = useApi();
+  const [fees, setFees] = useState<FeeRow[]>([]);
+  const [miniFee, setMiniFee] = useState<string>('');
+  const [microFee, setMicroFee] = useState<string>('');
+  const [account, setAccount] = useState<any>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [txType, setTxType] = useState<'DEPOSIT'|'WITHDRAWAL'>('DEPOSIT');
+  const [txAmount, setTxAmount] = useState<string>('');
+  const [txMsg, setTxMsg] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      try {
+  const acct = await api.get(`/accounts/${accountId}`).then(r=>r.data);
+        const r = await api.get(`/accounts/${accountId}/fees`).then(r => r.data);
+        const existing: any[] = r.fees || [];
+        const map: Record<string, any> = {};
+        existing.forEach(e => { map[e.assetClass] = e; });
+        const merged = assetClasses.map(ac => ({
+          assetClass: ac,
+          mode: map[ac]?.mode || 'PER_CONTRACT_DOLLAR',
+          value: map[ac]?.value ?? 0
+        }));
+        if (mounted) {
+          setAccount(acct);
+          setMiniFee(acct.defaultFeePerMiniContract != null ? String(acct.defaultFeePerMiniContract) : '');
+          setMicroFee(acct.defaultFeePerMicroContract != null ? String(acct.defaultFeePerMicroContract) : '');
+          setFees(merged as FeeRow[]);
+        }
+        // load transactions
+        try {
+          const txRes = await api.get('/transactions', { params: { accountId } });
+          if (mounted) setTransactions(txRes.data as Transaction[]);
+        } catch {/* ignore */}
+      } catch (e: any) { if (mounted) setError(e.message || 'failed to load'); }
+      finally { if (mounted) setLoading(false); }
+    })();
+    return () => { mounted = false; };
+  }, [accountId]);
+
+  const updateRow = (idx: number, patch: Partial<FeeRow>) => {
+    setFees(f => f.map((row,i) => i===idx ? { ...row, ...patch } : row));
+  };
+
+  const save = async () => {
+    setSaving(true); setError(null);
+    try {
+      // Save per-asset-class matrix
+      await api.put(`/accounts/${accountId}/fees`, { fees });
+      // Save mini/micro explicit defaults on account
+      await api.patch(`/accounts/${accountId}`, {
+        defaultFeePerMiniContract: miniFee !== '' ? Number(miniFee) : null,
+        defaultFeePerMicroContract: microFee !== '' ? Number(microFee) : null,
+      });
+    } catch (e: any) { setError(e.message || 'save failed'); }
+    finally { setSaving(false); }
+  };
+
+  const submitTx = async () => {
+    setTxMsg('');
+    const amt = Number(txAmount);
+    if (!amt || amt <= 0 || !account) return;
+    try {
+      await api.post('/transactions', { accountId, type: txType, amount: amt, currency: account.currency });
+      setTxMsg('Saved'); setTxAmount('');
+      const txRes = await api.get('/transactions', { params: { accountId } });
+      setTransactions(txRes.data as Transaction[]);
+    } catch {
+      setTxMsg('Failed');
+    }
+  };
+
+  if (loading) return <div>Loading fees...</div>;
+  if (error) return <div style={{ color: 'red' }}>{error}</div>;
+
+  return <div style={{ maxWidth: 760 }}>
+    <h2 style={{marginTop:0, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+      <div>{account?.name || 'Account'} <span style={{fontSize:14, opacity:.6}}>{account?.currency}</span></div>
+      {account && <button style={{background:'#3b0b0b'}} onClick={async()=>{
+        if (!confirm(`Delete account "${account.name}" and all its trades & transactions? This cannot be undone.`)) return;
+        const r = await fetch(`http://localhost:4000/accounts/${account.id}`, { method:'DELETE', headers:{ Authorization: `Bearer ${localStorage.getItem('token')||''}` }});
+        if (r.ok) {
+          alert('Account deleted');
+          window.location.href = '/accounts';
+        } else {
+          alert('Delete failed');
+        }
+      }}>Delete Account</button>}
+    </h2>
+    <div style={{display:'flex', gap:8, flexWrap:'wrap', marginBottom:12}}>
+      {account && <>
+        <button type='button' onClick={async()=>{
+          const url = `http://localhost:4000/csv/trades?accountId=${account.id}`;
+          const r = await fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
+          const blob = await r.blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `trades-${account.name}.csv`;
+          a.click();
+          URL.revokeObjectURL(a.href);
+        }}>Export Trades CSV</button>
+        <button type='button' onClick={async()=>{
+          const url = `http://localhost:4000/csv/transactions?accountId=${account.id}`;
+          const r = await fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
+          const blob = await r.blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `transactions-${account.name}.csv`;
+          a.click();
+          URL.revokeObjectURL(a.href);
+        }}>Export Transactions CSV</button>
+        <button type='button' onClick={async()=>{
+          const url = `http://localhost:4000/csv/account-bundle?accountId=${account.id}`;
+          const r = await fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
+          const blob = await r.blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `account-${account.name}-bundle.zip`;
+          a.click();
+          URL.revokeObjectURL(a.href);
+        }}>Export Account Bundle</button>
+        <label style={{display:'flex', alignItems:'center', gap:4, fontSize:12}}>
+          <span>Import Trades CSV</span>
+          <input type='file' accept='.csv' onChange={async e => {
+            const f = e.target.files?.[0]; if (!f) return;
+            const form = new FormData(); form.append('file', f); form.append('accountId', account.id);
+            try {
+              const r = await fetch('http://localhost:4000/csv/trades/import', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` }, body: form });
+              const j = await r.json();
+              alert(`Imported ${j.imported||0}, updated ${j.updated||0}`);
+            } catch { alert('Import failed'); }
+            e.target.value='';
+          }} />
+        </label>
+        <label style={{display:'flex', alignItems:'center', gap:4, fontSize:12}}>
+          <span>Import Transactions CSV</span>
+          <input type='file' accept='.csv' onChange={async e => {
+            const f = e.target.files?.[0]; if (!f) return;
+            const form = new FormData(); form.append('file', f); form.append('accountId', account.id);
+            try {
+              const r = await fetch('http://localhost:4000/csv/transactions/import', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` }, body: form });
+              const j = await r.json();
+              alert(`Imported ${j.imported||0}, updated ${j.updated||0}`);
+              const txRes = await fetch(`http://localhost:4000/transactions?accountId=${account.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` }});
+              const txJson = await txRes.json();
+              setTransactions(txJson);
+            } catch { alert('Import failed'); }
+            e.target.value='';
+          }} />
+        </label>
+      </>}
+    </div>
+    <h3 style={{margin:'16px 0 8px'}}>Fees</h3>
+    <div style={{display:'flex', gap:8, flexWrap:'wrap', marginBottom:8}}>
+      <input type='number' step='0.01' placeholder='Futures MINI fee ($/contract)' value={miniFee} onChange={e=>setMiniFee(e.target.value)} />
+      <input type='number' step='0.01' placeholder='Futures MICRO fee ($/contract)' value={microFee} onChange={e=>setMicroFee(e.target.value)} />
+    </div>
+    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <thead>
+        <tr>
+          <th style={{ textAlign: 'left' }}>Asset Class</th>
+          <th style={{ textAlign: 'left' }}>Mode</th>
+          <th style={{ textAlign: 'left' }}>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {fees.map((row, idx) => <tr key={row.assetClass}>
+          <td>{row.assetClass}</td>
+          <td>
+            <select value={row.mode} onChange={e => updateRow(idx, { mode: e.target.value as any })}>
+              <option value="PER_CONTRACT_DOLLAR">Dollar / contract-share</option>
+              <option value="PER_CONTRACT_PERCENT">Percent of notional</option>
+            </select>
+          </td>
+          <td>
+            <input type="number" step={row.mode === 'PER_CONTRACT_PERCENT' ? 0.0001 : 0.01} value={row.value} onChange={e => updateRow(idx, { value: parseFloat(e.target.value) || 0 })} />
+          </td>
+        </tr>)}
+      </tbody>
+    </table>
+    <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+      <button disabled={saving} onClick={save}>{saving ? 'Saving...' : 'Save Fees'}</button>
+    </div>
+    <p style={{ fontSize: 12, color: '#666' }}>Percent mode applies value% of notional (entryPrice * size). Dollar mode applies flat value per contract/share. Futures mini/micro explicit defaults may override if set in trade form logic.</p>
+
+    <h3 style={{margin:'24px 0 8px'}}>Transactions</h3>
+    {txMsg && <div style={{marginBottom:8, color: txMsg==='Saved' ? '#9ae6b4' : '#f56565'}}>{txMsg}</div>}
+    <div style={{display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
+      <select value={txType} onChange={e=>setTxType(e.target.value as any)}>
+        <option value='DEPOSIT'>Deposit</option>
+        <option value='WITHDRAWAL'>Withdrawal</option>
+      </select>
+      <input type='number' placeholder='Amount' value={txAmount} onChange={e=>setTxAmount(e.target.value)} />
+      <button type='button' onClick={submitTx} disabled={!txAmount}>Save</button>
+    </div>
+    <table style={{width:'100%', marginTop:12}} className='trade-table'>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Amount</th>
+          <th>Currency</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {transactions.map(tx => <tr key={tx.id}>
+          <td>{new Date(tx.createdAt).toLocaleString()}</td>
+          <td>{tx.type}</td>
+          <td>{Number(tx.amount).toFixed(2)}</td>
+          <td>{tx.currency}</td>
+          <td><button style={{fontSize:12}} onClick={async()=>{
+            if (!confirm('Delete this transaction?')) return;
+            await fetch(`http://localhost:4000/transactions/${tx.id}`, { method:'DELETE', headers:{ Authorization: `Bearer ${localStorage.getItem('token')||''}` }});
+            setTransactions(t => t.filter(x => x.id !== tx.id));
+          }}>✕</button></td>
+        </tr>)}
+        {!transactions.length && (
+          <tr><td colSpan={5}><i>No transactions</i></td></tr>
+        )}
+      </tbody>
+    </table>
+  </div>;
+};
+
+export default AccountSettingsPage;

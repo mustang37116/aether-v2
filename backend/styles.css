@@ -1,0 +1,40 @@
+:root{
+	--bg: #0b0d10;
+	--glass-bg: rgba(255,255,255,0.08);
+	--glass-border: rgba(255,255,255,0.16);
+	--text: #e7ebf0;
+	--muted: #a5adba;
+	--accent: #5ac8fa;
+	--pos: #20c997;
+	--neg: #ef4444;
+}
+*{ box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body { margin:0; font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background: linear-gradient(135deg,#0b0d10 0%, #111827 100%); color: var(--text); }
+a { color: var(--text); }
+nav a { text-decoration: none; color: var(--text); opacity: .9 }
+nav a:hover { opacity: 1 }
+
+/* macOS-style glassmorphism */
+.glass-app { backdrop-filter: saturate(180%) blur(24px); -webkit-backdrop-filter: saturate(180%) blur(24px); background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+.glass-panel { backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 12px; padding: 16px; }
+.warn { background: rgba(255,193,7,0.12); border: 1px solid rgba(255,193,7,0.28); color: #ffd166; padding: 8px; border-radius: 8px; }
+
+/* NavBar */
+nav { padding: 12px 16px; } 
+nav a { padding: 6px 10px; border-radius: 8px; }
+nav a[aria-current="page"], nav a.active { background: rgba(255,255,255,0.12); }
+
+/* Table */
+.trade-table { width: 100%; border-collapse: collapse; }
+.trade-table th, .trade-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); text-align: left; }
+.trade-table thead th { color: var(--muted); font-weight: 600; }
+.pnl-pos { color: var(--pos); }
+.pnl-neg { color: var(--neg); }
+
+/* Inputs */
+input, select, button { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; padding: 8px 10px; outline: none; }
+input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(90,200,250,0.25); }
+button { cursor: pointer; }
+button:hover { background: rgba(255,255,255,0.1); }
+button:disabled { opacity: .5; cursor: not-allowed; }

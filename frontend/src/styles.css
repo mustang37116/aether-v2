@@ -1,0 +1,240 @@
+:root{
+	--bg: #0b0d10;
+	--glass-bg: rgba(255,255,255,0.08);
+	--glass-border: rgba(255,255,255,0.16);
+	--text: #e7ebf0;
+	--muted: #a5adba;
+	--accent: #5ac8fa;
+	--pos: #20c997;
+	--neg: #ef4444;
+	/* Dynamic viewport unit; updated via JS and falls back to dvh */
+	--app-vh: 1dvh;
+}
+*{ box-sizing: border-box; }
+html, body, #root { height: 100%; }
+main, .app-shell, .dashboard-root { max-width: 1280px; margin: 0 auto; }
+/* Prevent horizontal overflow */
+/* Allow horizontal scroll if nav overflows on small screens so right-side buttons remain accessible */
+body { overflow-x: auto; }
+body { margin:0; font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background: radial-gradient(1200px 800px at 20% -10%, #1f2a44 0%, transparent 60%), radial-gradient(1000px 600px at 120% 20%, #4c1d95 0%, transparent 60%), radial-gradient(800px 800px at -10% 110%, #0e7490 0%, transparent 60%), linear-gradient(135deg,#0b0d10 0%, #0f172a 100%); color: var(--text); }
+body::before{
+	content:'';
+	position: fixed; inset: 0; pointer-events: none;
+	background: radial-gradient(500px 300px at 70% 10%, rgba(90,200,250,0.16), transparent 60%),
+							radial-gradient(400px 280px at 10% 70%, rgba(16,185,129,0.12), transparent 60%);
+	filter: blur(40px);
+}
+a { color: var(--text); }
+nav a { text-decoration: none; color: var(--text); opacity: .9 }
+nav a:hover { opacity: 1 }
+
+/* macOS-style glassmorphism */
+.glass-app { backdrop-filter: saturate(180%) blur(24px); -webkit-backdrop-filter: saturate(180%) blur(24px); background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.06)); border: 1px solid var(--glass-border); border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+.glass-panel { backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 12px; padding: 16px; max-width: 100%; overflow:hidden; }
+/* Trade form grid to prevent horizontal cut-off by wrapping into responsive columns */
+.trade-form-grid {
+	display: grid;
+	gap: 12px;
+	grid-template-columns: 1fr; /* mobile default */
+	align-items: start;
+}
+@media (min-width: 900px) {
+	.trade-form-grid { grid-template-columns: 1fr 1fr; }
+}
+.trade-form-grid h2 { grid-column: 1 / -1; }
+.trade-form-grid .span-2 { grid-column: 1 / -1; }
+/* On smaller screens keep single column */
+@media (max-width: 560px) {
+	.trade-form-grid { grid-template-columns: 1fr; }
+	.trade-form-grid .span-2 { grid-column: 1 / -1; }
+}
+.trade-form-grid .form-field { display: grid; gap: 4px; font-size: 12px; }
+.trade-form-grid .form-field > span { font-size:12px; opacity:.7; }
+.trade-form-grid .segmented { display: flex; gap: 8px; }
+.trade-form-grid .segmented button { flex:1; padding:6px 10px; border-radius:8px; }
+.trade-form-grid .segmented button.active { background: rgba(99,102,241,0.35); }
+.direction-segmented .dir-btn { transition: background .15s ease, box-shadow .15s ease; }
+.direction-segmented .dir-btn.long { background: rgba(16,185,129,0.15); }
+.direction-segmented .dir-btn.long.active { background: rgba(16,185,129,0.35); box-shadow: 0 0 0 1px rgba(16,185,129,0.5); }
+.direction-segmented .dir-btn.short { background: rgba(239,68,68,0.15); }
+.direction-segmented .dir-btn.short.active { background: rgba(239,68,68,0.35); box-shadow: 0 0 0 1px rgba(239,68,68,0.5); }
+.trade-form-grid textarea { resize: vertical; }
+.trade-form-grid .file-list { display:flex; flex-wrap:wrap; gap:6px; font-size:11px; opacity:.75; }
+.trade-form-grid .metrics-row { display:flex; gap:28px; margin-top:6px; }
+.metric-box { display:grid; gap:2px; }
+.metric-label { font-size:11px; color:var(--muted); }
+.metric-value { font-weight:600; }
+.trade-form-grid .actions { display:flex; justify-content:space-between; margin-top:4px; }
+.trade-form-grid .checkbox-inline { display:flex; align-items:center; gap:6px; font-size:12px; }
+ .trade-form-grid .helper-text { font-size:11px; opacity:.55; }
+ /* Fills editor */
+ .fills-editor { display:grid; gap:8px; }
+ .fills-header { font-size:12px; opacity:.7; }
+ .fills-list { display:grid; gap:6px; }
+ .fill-row { display:grid; grid-template-columns: auto repeat(3, minmax(70px,1fr)) auto; gap:6px; align-items:center; }
+ @media (max-width: 520px) {
+	 .fill-row { grid-template-columns: auto 1fr 1fr; grid-auto-rows:auto; }
+	 .fill-row .fill-cell:nth-child(3), .fill-row .fill-cell:nth-child(4) { font-size:11px; }
+ }
+ .fill-row .icon-btn { background:transparent; border:none; padding:4px 6px; cursor:pointer; }
+ .fill-row .icon-btn.danger { color: var(--neg); }
+ .fill-input-row { display:grid; grid-template-columns: auto repeat(3, 1fr) auto; gap:6px; align-items:center; }
+ @media (max-width: 560px) {
+	 .fill-input-row { grid-template-columns: 1fr 1fr; }
+	 .fill-input-row select, .fill-input-row input:nth-child(2) { grid-column: span 1; }
+	 .fill-input-row input[type=datetime-local] { grid-column: 1 / -1; }
+	 .fill-input-row button { grid-column: 1 / -1; }
+ }
+ .tag-chip.type-entry { background: rgba(16,185,129,0.28); border-color: rgba(16,185,129,0.5); }
+ .tag-chip.type-exit { background: rgba(239,68,68,0.28); border-color: rgba(239,68,68,0.5); }
+.warn { background: rgba(255,193,7,0.12); border: 1px solid rgba(255,193,7,0.28); color: #ffd166; padding: 8px; border-radius: 8px; }
+
+/* NavBar */
+nav { padding: 12px 16px; } 
+nav a { padding: 6px 10px; border-radius: 8px; }
+nav a[aria-current="page"], nav a.active { background: rgba(255,255,255,0.12); }
+
+/* Table */
+.trade-table { width: 100%; border-collapse: collapse; }
+.trade-table th, .trade-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); text-align: left; }
+.trade-table thead th { color: var(--muted); font-weight: 600; }
+.pnl-pos { color: var(--pos); }
+.pnl-neg { color: var(--neg); }
+
+/* Inputs */
+input, select, button { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; padding: 8px 10px; outline: none; }
+input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(90,200,250,0.25); }
+button { cursor: pointer; }
+button:hover { background: rgba(255,255,255,0.1); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Recent Trades */
+.trade-card { border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px; background: rgba(255,255,255,0.04); transition: transform .12s ease, background .12s ease; }
+.trade-card:hover { transform: translateY(-1px); background: rgba(255,255,255,0.06); }
+.tag-chip { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18); padding: 2px 6px; border-radius: 999px; font-size: 11px; }
+
+/* Modal */
+/* View vs Edit modal overlays: lighter for view, moderate dim for edit */
+.modal-overlay-view,
+.modal-overlay-edit {
+	/* Grid centering for robust positioning regardless of zoom; safe-area aware generous padding */
+	--overlay-vpad: clamp(48px, 12vh, 140px);
+	--pad-top: max(env(safe-area-inset-top), var(--overlay-vpad));
+	--pad-bottom: max(env(safe-area-inset-bottom), var(--overlay-vpad));
+	--pad-left: max(env(safe-area-inset-left), 16px);
+	--pad-right: max(env(safe-area-inset-right), 16px);
+	position: fixed; inset: 0; display: grid; place-items: center; z-index: 1000;
+	padding: var(--pad-top) var(--pad-right) var(--pad-bottom) var(--pad-left);
+	opacity: 0; animation: overlayFadeIn 180ms ease-out forwards;
+}
+
+@media (min-width: 1000px) {
+	.modal-overlay-view,
+	.modal-overlay-edit {
+		--overlay-vpad: clamp(64px, 12vh, 160px);
+	}
+}
+.modal-overlay-view {
+	background: rgba(0,0,0,0.55);
+	backdrop-filter: blur(10px) saturate(130%);
+	-webkit-backdrop-filter: blur(10px) saturate(130%);
+}
+.modal-overlay-edit {
+	/* Match view overlay for consistency */
+	background: rgba(0,0,0,0.55);
+	backdrop-filter: blur(10px) saturate(130%);
+	-webkit-backdrop-filter: blur(10px) saturate(130%);
+}
+.modal {
+	width: min(760px, calc(100vw - var(--pad-left) - var(--pad-right)));
+	max-height: min(900px, calc(var(--app-vh, 1dvh) * 100 - var(--pad-top) - var(--pad-bottom)));
+	display: flex; flex-direction: column; overflow: hidden;
+	background: linear-gradient(165deg, rgba(30,34,42,0.94), rgba(22,26,34,0.92));
+	border: 1px solid rgba(255,255,255,0.20);
+	border-radius: 20px; padding: 24px 26px; box-sizing: border-box;
+	box-shadow: 0 26px 70px -16px rgba(0,0,0,0.68), 0 6px 14px rgba(0,0,0,0.45);
+	backdrop-filter: blur(22px) saturate(155%);
+	-webkit-backdrop-filter: blur(22px) saturate(155%);
+	opacity: 0; transform: translateY(14px) scale(0.985);
+	will-change: opacity, transform;
+	animation: modalPop 210ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* Prefer the small viewport height unit where supported; map it into --app-vh so JS and CSS share one pathway */
+@supports (height: 100svh) {
+	:root { --app-vh: 1svh; }
+}
+.modal > .modal-scroll {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	padding-right: 4px; /* subtle breathing room for scrollbar */
+}
+.modal-overlay-view.modal-long,
+.modal-overlay-edit.modal-long {
+	/* When content is too tall, anchor near top instead of forced center */
+	place-items: start center;
+	/* Reduce top padding so header never clips; ensure safe-area still respected */
+	--overlay-vpad: clamp(32px, 8vh, 120px);
+}
+.modal.modal-long {
+	/* Provide slight top margin when long to avoid feeling glued */
+	margin-top: 8px;
+}
+.modal-header {
+	position: sticky;
+	top: 0;
+	background: linear-gradient(165deg, rgba(30,34,42,0.96), rgba(22,26,34,0.94));
+	padding-bottom: 12px;
+	margin-bottom: 12px;
+	z-index: 2;
+	/* subtle backdrop to distinguish when scrolled */
+	box-shadow: 0 2px 4px -2px rgba(0,0,0,0.6);
+}
+.modal > .modal-scroll::-webkit-scrollbar { width: 10px; }
+.modal > .modal-scroll::-webkit-scrollbar-track { background: transparent; }
+.modal > .modal-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 8px; }
+
+/* Keep true centering; content will scroll internally when taller than viewport */
+
+@media (max-height: 640px) {
+	.modal { max-height: calc(var(--app-vh, 1dvh) * 100 - max(env(safe-area-inset-top), 8px) - max(env(safe-area-inset-bottom), 8px)); }
+}
+
+/* Ultra narrow devices: reduce side padding & radius for better fit */
+@media (max-width: 420px) {
+	.modal { width: 100%; border-radius: 14px; padding: 18px 18px 20px; }
+}
+
+/* If keyboard opens on mobile (approx by reduced height), keep modal anchored within viewport padding */
+@media (max-height: 520px) and (max-width: 640px) {
+	.modal-overlay-view,
+	.modal-overlay-edit { padding: 6px 8px; }
+	.modal { border-radius: 14px; }
+}
+/* Exit (closing) animations */
+.modal-overlay-view.closing,
+.modal-overlay-edit.closing {
+	animation: overlayFadeIn 160ms ease-in reverse forwards;
+}
+.modal.closing {
+	animation: modalPop 170ms cubic-bezier(0.4, 0.2, 0.2, 1) reverse forwards;
+}
+
+@keyframes overlayFadeIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@keyframes modalPop {
+	0% { opacity: 0; transform: translateY(14px) scale(0.985); }
+	100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.modal-overlay-view,
+	.modal-overlay-edit,
+	.modal {
+		animation: none !important;
+		transition: none !important;
+	}
+}
