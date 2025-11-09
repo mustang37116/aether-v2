@@ -17,7 +17,6 @@ const AccountSettingsWrapper: React.FC = () => {
   return <AccountSettingsPage accountId={accountId} />;
 };
 import AuthPage from './pages/AuthPage';
-import SettingsPage from './pages/SettingsPage';
 import JournalPage from './pages/JournalPage';
 import RecentlyDeletedTradesPage from './pages/RecentlyDeletedTradesPage';
 import Protected from './components/Protected';
@@ -37,7 +36,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path='accounts' element={<Protected><AccountsPage /></Protected>} />
             <Route path='accounts/:accountId/settings' element={<Protected><AccountSettingsWrapper /></Protected>} />
             <Route path='auth' element={<AuthPage />} />
-            <Route path='settings' element={<Protected><SettingsPage /></Protected>} />
+            <Route path='settings' element={<Navigate to='/auth' replace />} />
             <Route path='journal' element={<Protected><JournalPage /></Protected>} />
             <Route path='journal/deleted' element={<Protected><RecentlyDeletedTradesPage /></Protected>} />
           </Route>

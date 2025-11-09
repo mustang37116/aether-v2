@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { FiHome, FiBookOpen, FiDollarSign, FiLayers, FiSettings, FiUser, FiPlusSquare } from 'react-icons/fi';
+import { FiHome, FiBookOpen, FiDollarSign, FiLayers, FiUser, FiPlusSquare } from 'react-icons/fi';
 import './NavBar.css';
 
 export default function NavBar(){
@@ -24,10 +24,6 @@ export default function NavBar(){
           <Link to="/strategies" className={`nav-icon-link ${isActive('/strategies')?'active':''}`} aria-label="Strategies" title="Strategies">
             <FiLayers size={20} />
             <span className="nav-icon-label">Strategies</span>
-          </Link>
-          <Link to="/settings" className={`nav-icon-link ${isActive('/settings')?'active':''}`} aria-label="Settings" title="Settings">
-            <FiSettings size={20} />
-            <span className="nav-icon-label">Settings</span>
           </Link>
         </div>
       </div>
