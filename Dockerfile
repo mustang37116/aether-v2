@@ -13,6 +13,13 @@ RUN npm run build
 # Prepare production node_modules with generated Prisma client
 RUN npm prune --omit=dev
 
+# --- Frontend build ---
+WORKDIR /app/frontend
+COPY frontend/package*.json frontend/tsconfig.json frontend/vite.config.ts frontend/index.html ./
+RUN npm ci
+COPY frontend/src ./src
+RUN npm run build
+
 # --- Runtime image ---
 FROM node:20-slim
 WORKDIR /app/backend
@@ -30,6 +37,7 @@ COPY --from=build /app/backend/package*.json ./
 # Copy compiled app and prisma schema
 COPY --from=build /app/backend/dist ./dist
 COPY backend/prisma ./prisma
+COPY --from=build /app/frontend/dist ./public
 
 EXPOSE 4000
 
