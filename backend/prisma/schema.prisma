@@ -20,6 +20,8 @@ model User {
   tags        Tag[]
   settings    UserSettings?
   strategies  Strategy[]
+  playbooks   Playbook[]
+  setups      Setup[]
 }
 
 model UserSettings {
@@ -130,6 +132,7 @@ model Strategy {
   checklistItems StrategyChecklistItem[]
   trades      Trade[]
   tags        StrategyTag[]
+  setups      Setup[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   @@unique([userId, name])
