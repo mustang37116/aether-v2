@@ -13,6 +13,7 @@ export default function JournalPage(){
   const [trades, setTrades] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|null>(null);
+  const [fatal, setFatal] = useState<string|null>(null);
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<any|null>(null);
   const [editingTrade, setEditingTrade] = useState<any|null>(null);
@@ -61,10 +62,22 @@ export default function JournalPage(){
         </div>
         {loading && <div>Loading...</div>}
         {error && <div className='warn'>{error}</div>}
+        {fatal && (
+          <div style={{background:'#3b0b0b', padding:12, borderRadius:8}}>
+            <strong>Journal render error:</strong> {fatal} (check console)
+          </div>
+        )}
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:12}}>
-          {trades.map(t => (
-            <JournalCard key={t.id} trade={t} onView={()=>setSelected(t)} onEdit={()=>setEditingTrade(t)} />
-          ))}
+          {!fatal && trades.map(t => {
+            try {
+              if (!t || !t.id) return null;
+              return <JournalCard key={t.id} trade={t} onView={()=>setSelected(t)} onEdit={()=>setEditingTrade(t)} />;
+            } catch(e:any){
+              console.error('JournalCard render failed', e, t);
+              setFatal(e?.message || 'Unknown error');
+              return null;
+            }
+          })}
         </div>
         {!loading && trades.length === 0 && (
           <div style={{textAlign:'center', padding:20, fontSize:12, opacity:.7}}>No trades found.</div>
