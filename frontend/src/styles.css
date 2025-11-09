@@ -26,6 +26,8 @@ body::before{
 a { color: var(--text); }
 nav a { text-decoration: none; color: var(--text); opacity: .9 }
 nav a:hover { opacity: 1 }
+/* Temporary: hide legacy Playbooks link if old bundle/nav renders it */
+nav a[href="/playbooks"] { display: none !important; }
 
 /* macOS-style glassmorphism */
 .glass-app { backdrop-filter: saturate(180%) blur(24px); -webkit-backdrop-filter: saturate(180%) blur(24px); background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.06)); border: 1px solid var(--glass-border); border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
