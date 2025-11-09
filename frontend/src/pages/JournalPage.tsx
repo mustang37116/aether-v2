@@ -368,128 +368,135 @@ function EditTradeModal({ trade, onClose, onSaved }: { trade:any; onClose:()=>vo
     <div className={`modal-overlay-edit ${closing ? 'closing' : ''}`} onClick={handleClose}>
       <ModalContainer onClose={handleClose} labelledById='edit-trade-title' className={`modal ${closing ? 'closing' : ''}`}>
         <div className='modal-scroll'>
-        <div className='modal-header' style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-          <h3 id='edit-trade-title' style={{margin:0}}>Edit {trade.symbol}</h3>
-          <div style={{display:'flex', gap:8}}>
-            <button onClick={handleClose}>Close</button>
-          </div>
-        </div>
-        <div style={{display:'grid', gap:12, marginTop:12}}>
-          <div style={{display:'grid', gridTemplateColumns:'1fr', gap:8}}>
-            <SymbolAutocomplete value={form.symbol} onChange={v=>update('symbol', v)} />
-          </div>
-          <div>
-            <div style={{fontSize:12, opacity:.7, marginBottom:4}}>Direction</div>
+          <div className='modal-header' style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <h3 id='edit-trade-title' style={{margin:0}}>Edit {trade.symbol}</h3>
             <div style={{display:'flex', gap:8}}>
-              <button type='button' onClick={()=>update('direction','LONG')} style={{padding:'6px 10px', borderRadius:8, background: form.direction==='LONG' ? 'rgba(0,150,0,0.35)' : 'rgba(255,255,255,0.06)'}}>Long</button>
-              <button type='button' onClick={()=>update('direction','SHORT')} style={{padding:'6px 10px', borderRadius:8, background: form.direction==='SHORT' ? 'rgba(150,0,0,0.35)' : 'rgba(255,255,255,0.06)'}}>Short</button>
+              <button onClick={handleClose}>Close</button>
             </div>
           </div>
-          {/* Legacy single-entry fields removed. Offer conversion helper if no fills exist. */}
-          {(!fills.length) && (
-            <div style={{display:'grid', gap:8}}>
-              <div style={{fontSize:12, opacity:.7}}>No fills yet for this trade. You can convert the legacy base data into fills.</div>
-              <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
-                <button type='button' onClick={async()=>{
-                  try {
-                    const batch:any[] = [];
-                    if (trade.size && trade.entryPrice) {
-                      batch.push({ type:'ENTRY', size: Number(trade.size), price: Number(trade.entryPrice), time: dayjs(trade.entryTime).toISOString() });
-                    }
-                    if (trade.exitPrice && trade.exitTime) {
-                      batch.push({ type:'EXIT', size: Number(trade.size), price: Number(trade.exitPrice), time: dayjs(trade.exitTime).toISOString() });
-                    }
-                    if (!batch.length) return;
-                    await api.post(`/trades/${trade.id}/fills`, batch);
-                    const r = await api.get(`/trades/${trade.id}/fills`);
-                    setFills(r.data || []);
-                  } catch {}
-                }}>Convert legacy entry/exit to fills</button>
+          <div className='trade-form-grid'>
+            {/* Symbol */}
+            <label className='form-field span-2'>
+              <span>Symbol</span>
+              <SymbolAutocomplete value={form.symbol} onChange={v=>update('symbol', v)} />
+            </label>
+            {/* Direction */}
+            <label className='form-field span-2'>
+              <span>Direction</span>
+              <div className='segmented direction-segmented'>
+                <button type='button' onClick={()=>update('direction','LONG')} className={`dir-btn long ${form.direction==='LONG'?'active':''}`}>Long</button>
+                <button type='button' onClick={()=>update('direction','SHORT')} className={`dir-btn short ${form.direction==='SHORT'?'active':''}`}>Short</button>
               </div>
-            </div>
-          )}
-          {/* Entry/Exit time inputs removed in fills-only model */}
-          <label style={{display:'grid', gap:4}}>
-            <span style={{fontSize:12, opacity:.7}}>Strategy</span>
-            <select value={strategyId} onChange={e=> setStrategyId(e.target.value)}>
-              <option value=''>None</option>
-              {strategies.map((s:any)=> <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </label>
-          <textarea placeholder='Notes' rows={4} value={form.notes} onChange={e=>update('notes', e.target.value)} />
-          <label style={{display:'grid', gap:4}}>
-            <span style={{fontSize:12, opacity:.7}}>Confidence: {form.confidence}%</span>
-            <input type='range' min={0} max={100} value={form.confidence} onChange={e=>update('confidence', Number(e.target.value))} />
-          </label>
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+            </label>
+            {/* Helper: convert legacy to fills */}
+            {(!fills.length) && (
+              <div className='helper-text span-2'>
+                No fills yet. You can convert legacy entry/exit into fills.
+                <div style={{marginTop:8}}>
+                  <button type='button' onClick={async()=>{
+                    try {
+                      const batch:any[] = [];
+                      if (trade.size && trade.entryPrice) batch.push({ type:'ENTRY', size: Number(trade.size), price: Number(trade.entryPrice), time: dayjs(trade.entryTime).toISOString() });
+                      if (trade.exitPrice && trade.exitTime) batch.push({ type:'EXIT', size: Number(trade.size), price: Number(trade.exitPrice), time: dayjs(trade.exitTime).toISOString() });
+                      if (!batch.length) return;
+                      await api.post(`/trades/${trade.id}/fills`, batch);
+                      const r = await api.get(`/trades/${trade.id}/fills`);
+                      setFills(r.data || []);
+                    } catch {}
+                  }}>Convert legacy entry/exit to fills</button>
+                </div>
+              </div>
+            )}
+            {/* Strategy */}
+            <label className='form-field'>
+              <span>Strategy</span>
+              <select value={strategyId} onChange={e=> setStrategyId(e.target.value)}>
+                <option value=''>None</option>
+                {strategies.map((s:any)=> <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </label>
+            {/* Confidence */}
+            <label className='form-field'>
+              <span>Confidence: {form.confidence}%</span>
+              <input type='range' min={0} max={100} value={form.confidence} onChange={e=>update('confidence', Number(e.target.value))} />
+            </label>
+            {/* Notes */}
+            <textarea className='span-2' placeholder='Notes' rows={4} value={form.notes} onChange={e=>update('notes', e.target.value)} />
+            {/* Stop/Target */}
             <input placeholder='Stop Price' value={form.stopPrice} onChange={e=>update('stopPrice', e.target.value)} />
             <input placeholder='Target Price' value={form.targetPrice} onChange={e=>update('targetPrice', e.target.value)} />
-          </div>
-          <div style={{fontSize:12, opacity:.8}}>R preview: {rPreview ?? '-'}</div>
-          <label style={{display:'flex', alignItems:'center', gap:6, fontSize:12}}>
-            <input type='checkbox' checked={form.setupMode} onChange={e=>update('setupMode', e.target.checked)} /> Setup Mode
-          </label>
-          <TagEditorInline tradeId={trade.id} initialTags={trade.tags || []} onChange={onSaved} />
-          <div style={{display:'grid', gap:6}}>
-            <div style={{fontSize:12, opacity:.7}}>Fills (overrides single entry/exit fields)</div>
-            {fills.length ? (
-              <div style={{display:'grid', gap:6}}>
-                {fills.map(f => (
-                  <div key={f.id} style={{display:'grid', gridTemplateColumns:'auto 1fr auto auto auto', alignItems:'center', gap:8}}>
-                    <span className={`tag-chip ${f.type==='ENTRY'?'type-entry':'type-exit'}`} style={{justifySelf:'start'}}>{f.type}</span>
-                    <span style={{fontSize:12, opacity:.9}}>Size: {Number(f.size)}</span>
-                    <span style={{fontSize:12, opacity:.9}}>Price: {Number(f.price).toFixed(2)}</span>
-                    <span style={{fontSize:12, opacity:.7}}>{dayjs(f.time).format('YYYY-MM-DD HH:mm')}</span>
-                    <button type='button' style={{background:'transparent', color:'var(--danger)', fontSize:12}} onClick={()=>deleteFill(f.id)}>✕</button>
-                  </div>
-                ))}
-              </div>
-            ) : <div style={{fontSize:11, opacity:.6}}>No fills</div>}
-            <div style={{display:'grid', gridTemplateColumns:'auto 1fr 1fr 1fr auto', gap:6, alignItems:'center'}}>
-              <select value={newFill.type} onChange={e=> setNewFill(n=> ({ ...n, type: e.target.value as any }))}>
-                <option value='ENTRY'>Entry</option>
-                <option value='EXIT'>Exit</option>
-              </select>
-              <input placeholder='Size' value={newFill.size} onChange={e=> setNewFill(n=> ({ ...n, size: e.target.value }))} />
-              <input placeholder='Price' value={newFill.price} onChange={e=> setNewFill(n=> ({ ...n, price: e.target.value }))} />
-              <input type='datetime-local' value={newFill.time} onChange={e=> setNewFill(n=> ({ ...n, time: e.target.value }))} />
-              <button type='button' onClick={addFill}>Add</button>
+            <div className='helper-text'>R preview: {rPreview ?? '-'}</div>
+            {/* Setup Mode */}
+            <label className='form-field checkbox-inline span-2'>
+              <input type='checkbox' checked={form.setupMode} onChange={e=>update('setupMode', e.target.checked)} /> Setup Mode
+            </label>
+            {/* Tags */}
+            <div className='span-2'>
+              <TagEditorInline tradeId={trade.id} initialTags={trade.tags || []} onChange={onSaved} />
             </div>
-          </div>
-          <div style={{display:'grid', gap:6}}>
-            <div style={{fontSize:12, opacity:.7}}>Attachments</div>
-            {attachments.length ? (
-              <div style={{display:'grid', gap:4}}>
-                {attachments.map(att => (
-                  <div key={att.id} style={{display:'flex', alignItems:'center', gap:8}}>
-                          <a href={`${API_BASE.replace(/\/api$/, '')}${att.url}`} target='_blank' rel='noreferrer' style={{fontSize:11}}>Attachment</a>
-                    <button type='button' style={{background:'transparent', color:'var(--danger)', fontSize:10}} onClick={()=>deleteAttachment(att.id)}>✕</button>
-                  </div>
-                ))}
-              </div>
-            ) : <div style={{fontSize:11, opacity:.6}}>No attachments</div>}
-            <div style={{display:'grid', gap:6}}>
-              <div style={{display:'flex', gap:6, alignItems:'center'}}>
-                <input type='file' multiple onChange={e=> setAttachFiles(Array.from(e.target.files || []))} />
-                <button type='button' disabled={!attachFiles.length || uploading} onClick={uploadAttachment}>{uploading ? 'Uploading...' : 'Upload'}</button>
-              </div>
-              {attachFiles.length > 0 && (
-                <div style={{display:'flex', flexWrap:'wrap', gap:6, fontSize:11, opacity:.8}}>
-                  {attachFiles.map(f => <span key={f.name}>{f.name}</span>)}
+            {/* Fills */}
+            <div className='span-2' style={{display:'grid', gap:6}}>
+              <div className='fills-header'>Fills (overrides single entry/exit fields)</div>
+              {fills.length ? (
+                <div className='fills-list'>
+                  {fills.map(f => (
+                    <div key={f.id} className='fill-row'>
+                      <span className={`tag-chip ${f.type==='ENTRY'?'type-entry':'type-exit'}`} style={{justifySelf:'start'}}>{f.type}</span>
+                      <span className='fill-cell'>Size: {Number(f.size)}</span>
+                      <span className='fill-cell'>Price: {Number(f.price).toFixed(2)}</span>
+                      <span className='fill-cell'>{dayjs(f.time).format('YYYY-MM-DD HH:mm')}</span>
+                      <button type='button' className='icon-btn danger' onClick={()=>deleteFill(f.id)}>✕</button>
+                    </div>
+                  ))}
                 </div>
-              )}
+              ) : <div style={{fontSize:11, opacity:.6}}>No fills</div>}
+              <div className='fill-input-row'>
+                <select value={newFill.type} onChange={e=> setNewFill(n=> ({ ...n, type: e.target.value as any }))}>
+                  <option value='ENTRY'>Entry</option>
+                  <option value='EXIT'>Exit</option>
+                </select>
+                <input placeholder='Size' value={newFill.size} onChange={e=> setNewFill(n=> ({ ...n, size: e.target.value }))} />
+                <input placeholder='Price' value={newFill.price} onChange={e=> setNewFill(n=> ({ ...n, price: e.target.value }))} />
+                <input type='datetime-local' value={newFill.time} onChange={e=> setNewFill(n=> ({ ...n, time: e.target.value }))} />
+                <button type='button' onClick={addFill}>Add</button>
+              </div>
+            </div>
+            {/* Attachments */}
+            <div className='span-2' style={{display:'grid', gap:6}}>
+              <div style={{fontSize:12, opacity:.7}}>Attachments</div>
+              {attachments.length ? (
+                <div style={{display:'grid', gap:4}}>
+                  {attachments.map(att => (
+                    <div key={att.id} style={{display:'flex', alignItems:'center', gap:8}}>
+                      <a href={`${API_BASE.replace(/\/api$/, '')}${att.url}`} target='_blank' rel='noreferrer' style={{fontSize:11}}>Attachment</a>
+                      <button type='button' style={{background:'transparent', color:'var(--danger)', fontSize:10}} onClick={()=>deleteAttachment(att.id)}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              ) : <div style={{fontSize:11, opacity:.6}}>No attachments</div>}
+              <div style={{display:'grid', gap:6}}>
+                <div style={{display:'flex', gap:6, alignItems:'center'}}>
+                  <input type='file' multiple onChange={e=> setAttachFiles(Array.from(e.target.files || []))} />
+                  <button type='button' disabled={!attachFiles.length || uploading} onClick={uploadAttachment}>{uploading ? 'Uploading...' : 'Upload'}</button>
+                </div>
+                {attachFiles.length > 0 && (
+                  <div style={{display:'flex', flexWrap:'wrap', gap:6, fontSize:11, opacity:.8}}>
+                    {attachFiles.map(f => <span key={f.name}>{f.name}</span>)}
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Actions */}
+            <div className='actions span-2'>
+              <button onClick={save} disabled={saving}>Save</button>
+              <button onClick={handleClose} type='button'>Cancel</button>
+              <button style={{marginLeft:'auto', background:'#3b0b0b'}} onClick={async()=>{
+                if (!confirm('Delete this trade? You can restore it from Recently Deleted.')) return;
+                try { await api.delete(`/trades/${trade.id}`); onSaved(); }
+                catch {}
+              }}>Delete Trade</button>
             </div>
           </div>
-          <div style={{display:'flex', gap:8, marginTop:8}}>
-            <button onClick={save} disabled={saving}>Save</button>
-            <button onClick={handleClose} type='button'>Cancel</button>
-            <button style={{marginLeft:'auto', background:'#3b0b0b'}} onClick={async()=>{
-              if (!confirm('Delete this trade? You can restore it from Recently Deleted.')) return;
-              try { await api.delete(`/trades/${trade.id}`); onSaved(); }
-              catch {}
-            }}>Delete Trade</button>
-          </div>
-        </div>
         </div>
       </ModalContainer>
     </div>
