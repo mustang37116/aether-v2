@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { useApi } from '../hooks/useApi';
 import dayjs from 'dayjs';
 // Local copy of shared risk util vendored for container build
 import { calcRiskRewardR } from '../shared/math/risk';
@@ -35,18 +35,19 @@ export default function TradeForm() {
   // 1) last used (localStorage)
   // 2) favorite from settings
   // 3) first account
+  const api = useApi();
   useEffect(() => {
+    let mounted = true;
     async function loadAccount() {
       setLoadingAccount(true);
       try {
-        const token = localStorage.getItem('token');
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        // Fetch settings for favorite account
+        // Fetch accounts, settings (favorite), and strategies
         const [acctRes, settingsRes, stratRes] = await Promise.all([
-          axios.get('http://localhost:4000/accounts', { headers }),
-          axios.get('http://localhost:4000/settings', { headers }).catch(()=>({ data: {} })),
-          axios.get('http://localhost:4000/strategies', { headers }).catch(()=>({ data: [] }))
+          api.get('/accounts'),
+          api.get('/settings').catch(()=>({ data: {} })),
+          api.get('/strategies').catch(()=>({ data: [] }))
         ]);
+        if (!mounted) return;
         setAccounts(acctRes.data || []);
         setStrategies(stratRes.data || []);
         const list:any[] = acctRes.data || [];
@@ -57,13 +58,14 @@ export default function TradeForm() {
         else if (exists(fav)) setAccountId(fav as string);
         else if (list.length > 0) setAccountId(list[0].id);
       } catch (e) {
-        // silently ignore
+        // silently ignore for now (could surface a banner later)
       } finally {
-        setLoadingAccount(false);
+        if (mounted) setLoadingAccount(false);
       }
     }
     loadAccount();
-  }, []);
+    return ()=> { mounted = false; };
+  }, [api]);
   const [metrics, setMetrics] = useState<any>(null);
   const [attachFiles, setAttachFiles] = useState<File[]>([]);
 
@@ -94,8 +96,7 @@ export default function TradeForm() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const token = localStorage.getItem('token');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    // useApi already injects Authorization header
     if (!accountId) {
       alert('Create an account first on Accounts page before adding trades.');
       return;
@@ -122,7 +123,7 @@ export default function TradeForm() {
   // Do not set fees from client; backend auto-calculates based on account settings and fills
     let res;
     try {
-      res = await axios.post('http://localhost:4000/trades', payload, { headers });
+      res = await api.post('/trades', payload);
     } catch(err:any) {
       alert('Failed to create trade: ' + (err?.response?.data?.error || err.message));
       return;
@@ -133,7 +134,7 @@ export default function TradeForm() {
         const formData = new FormData();
         formData.append('tradeId', res.data.trade.id);
         for (const f of attachFiles) formData.append('file', f);
-        await axios.post('http://localhost:4000/attachments', formData, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
+        await api.post('/attachments', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       }
     } catch { /* ignore attachment failure for now */ }
     try {

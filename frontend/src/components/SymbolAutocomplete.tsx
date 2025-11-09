@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 
 export interface SymbolAutocompleteProps { value: string; onChange(v:string): void; placeholder?: string; className?: string; }
 export default function SymbolAutocomplete({ value, onChange, placeholder='Symbol', className }: SymbolAutocompleteProps){
-  const apiBase = 'http://localhost:4000';
+  // Dynamic API base (mirrors useApi logic): prefer explicit env, else same-origin + /api, else localhost dev fallback
+  const explicit = (import.meta as any).env?.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE_URL;
+  const sameOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
+  const apiBase = explicit || (sameOrigin ? sameOrigin + '/api' : 'http://localhost:4000/api');
   const rootRef = useRef<HTMLDivElement|null>(null);
   const inputRef = useRef<HTMLInputElement|null>(null);
   const [open, setOpen] = useState(false);
@@ -19,7 +22,7 @@ export default function SymbolAutocomplete({ value, onChange, placeholder='Symbo
     abortRef.current = ac;
     const t = setTimeout(async ()=>{
       try {
-        const r = await fetch(`${apiBase}/marketdata/search?q=${encodeURIComponent(query)}`, { signal: ac.signal, headers: authHeaders() });
+  const r = await fetch(`${apiBase}/marketdata/search?q=${encodeURIComponent(query)}`, { signal: ac.signal, headers: authHeaders() });
         if (!r.ok) throw new Error('search failed');
         const data = await r.json();
         setResults(data.quotes || []);
