@@ -188,6 +188,7 @@ router.get('/', async (req, res) => {
             where.entryTime.lte = new Date(end);
     }
     const take = limit ? Math.min(Number(limit), 200) : undefined;
+    // Removed deprecated setupRef relation include (schema no longer defines setupRef)
     const trades = await prisma.trade.findMany({ where, include: { tradeTags: { include: { tag: true } }, attachments: true, tradeFills: true, strategyRef: true }, orderBy: { entryTime: 'desc' }, take, skip: skip ? Number(skip) : undefined });
     const enriched = trades.map((t) => {
         // Compute metrics direction-aware; if fills exist prefer avg ENTRY price + total ENTRY size.
@@ -243,6 +244,7 @@ router.get('/', async (req, res) => {
 // Fetch a single trade (enriched) by id
 router.get('/:id', async (req, res) => {
     const { id } = req.params;
+    // Removed setupRef include
     const t = await prisma.trade.findFirst({ where: { id, userId: req.userId }, include: { tradeTags: { include: { tag: true } }, attachments: true, tradeFills: true } });
     if (!t)
         return res.status(404).json({ error: 'trade not found' });
