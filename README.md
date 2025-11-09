@@ -115,3 +115,4 @@ R = reward / risk
 - More analytics (per-tag breakdown, rolling metrics, filters)
 - Robust currency feeds/seed data and backfill tools
 - E2E tests and seed script
+# aether-v2
