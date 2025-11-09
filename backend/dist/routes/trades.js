@@ -188,7 +188,7 @@ router.get('/', async (req, res) => {
             where.entryTime.lte = new Date(end);
     }
     const take = limit ? Math.min(Number(limit), 200) : undefined;
-    // Removed deprecated setupRef relation include (schema no longer defines setupRef)
+    // NOTE: setupRef removed from schema; ensure we don't attempt to include it.
     const trades = await prisma.trade.findMany({ where, include: { tradeTags: { include: { tag: true } }, attachments: true, tradeFills: true, strategyRef: true }, orderBy: { entryTime: 'desc' }, take, skip: skip ? Number(skip) : undefined });
     const enriched = trades.map((t) => {
         // Compute metrics direction-aware; if fills exist prefer avg ENTRY price + total ENTRY size.
@@ -244,7 +244,7 @@ router.get('/', async (req, res) => {
 // Fetch a single trade (enriched) by id
 router.get('/:id', async (req, res) => {
     const { id } = req.params;
-    // Removed setupRef include
+    // setupRef relation no longer exists
     const t = await prisma.trade.findFirst({ where: { id, userId: req.userId }, include: { tradeTags: { include: { tag: true } }, attachments: true, tradeFills: true } });
     if (!t)
         return res.status(404).json({ error: 'trade not found' });
@@ -310,7 +310,7 @@ router.put('/:id/exit', async (req, res) => {
     res.json({ trade: updated, pnl, holdTimeSeconds });
 });
 router.post('/', async (req, res) => {
-    const { accountId, symbol, assetClass, direction, size, entryPrice, entryTime, stopPrice, targetPrice, setupMode, strategy, strategyId, setupId, notes, confidence, tags, exitPrice, exitTime, fills, fees } = req.body;
+    const { accountId, symbol, assetClass, direction, size, entryPrice, entryTime, stopPrice, targetPrice, setupMode, strategy, strategyId, notes, confidence, tags, exitPrice, exitTime, fills, fees } = req.body;
     // Derive assetClass if not provided
     const derived = await resolveAssetClassAndSymbol(symbol);
     const finalAssetClass = assetClass || derived.assetClass;
@@ -328,7 +328,7 @@ router.post('/', async (req, res) => {
         if (!baseEntryTime)
             baseEntryTime = firstEntry.time || new Date().toISOString();
     }
-    const trade = await prisma.trade.create({ data: { accountId, userId: req.userId, symbol, assetClass: finalAssetClass, direction: direction || null, size: baseSize, entryPrice: baseEntryPrice, entryTime: new Date(baseEntryTime), stopPrice, targetPrice, setupMode: !!setupMode, strategy: strategy || null, strategyId: strategyId || null, setupId: setupId || null, notes: notes || null, confidence: typeof confidence === 'number' ? confidence : null, exitPrice: exitPrice ?? null, exitTime: exitTime ? new Date(exitTime) : null, fees: fees != null ? Number(fees) : null } });
+    const trade = await prisma.trade.create({ data: { accountId, userId: req.userId, symbol, assetClass: finalAssetClass, direction: direction || null, size: baseSize, entryPrice: baseEntryPrice, entryTime: new Date(baseEntryTime), stopPrice, targetPrice, setupMode: !!setupMode, strategy: strategy || null, strategyId: strategyId || null, notes: notes || null, confidence: typeof confidence === 'number' ? confidence : null, exitPrice: exitPrice ?? null, exitTime: exitTime ? new Date(exitTime) : null, fees: fees != null ? Number(fees) : null } });
     // Handle tags: list of tag names
     if (Array.isArray(tags) && tags.length) {
         for (const name of tags) {
@@ -382,7 +382,7 @@ router.post('/:id/restore', async (req, res) => {
 // Update simple fields on a trade
 router.patch('/:id', async (req, res) => {
     const { id } = req.params;
-    const { symbol, assetClass, direction, size, entryPrice, entryTime, exitPrice, exitTime, fees, stopPrice, targetPrice, strategy, strategyId, setupId, notes, confidence, setupMode, } = req.body;
+    const { symbol, assetClass, direction, size, entryPrice, entryTime, exitPrice, exitTime, fees, stopPrice, targetPrice, strategy, strategyId, notes, confidence, setupMode, } = req.body;
     const existing = await prisma.trade.findFirst({ where: { id, userId: req.userId } });
     if (!existing)
         return res.status(404).json({ error: 'trade not found' });
@@ -418,8 +418,6 @@ router.patch('/:id', async (req, res) => {
         data.strategy = strategy;
     if (strategyId !== undefined)
         data.strategyId = strategyId === null ? null : strategyId;
-    if (setupId !== undefined)
-        data.setupId = setupId === null ? null : setupId;
     if (notes !== undefined)
         data.notes = notes;
     if (typeof confidence === 'number')
