@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { API_BASE } from '../apiBase';
 import { useApi } from '../hooks/useApi';
+import { useCachedGet } from '../hooks/useCachedGet';
 import dayjs from 'dayjs';
 import TradeChart from '../components/TradeChart';
 import SymbolAutocomplete from '../components/SymbolAutocomplete';
@@ -11,7 +12,6 @@ interface Filters { accountId?: string; start?: string; end?: string; }
 export default function JournalPage(){
   const api = useApi();
   const [trades, setTrades] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|null>(null);
   const [fatal, setFatal] = useState<string|null>(null);
   const [page, setPage] = useState(0);
@@ -22,20 +22,10 @@ export default function JournalPage(){
   // Basic filters local (could reuse DashboardFilters later)
   const [filters, setFilters] = useState<Filters>(() => ({ start: dayjs().subtract(6,'month').format('YYYY-MM-DD') }));
 
-  useEffect(()=>{ load(); }, [page, filters.accountId, filters.start, filters.end]);
-
-  async function load(){
-    try {
-      setLoading(true); setError(null);
-      const params:any = { limit: PAGE_SIZE, skip: page * PAGE_SIZE };
-      if (filters.accountId) params.accountId = filters.accountId;
-      if (filters.start) params.start = filters.start;
-      if (filters.end) params.end = filters.end;
-      const r = await api.get('/trades', { params });
-      setTrades(r.data);
-    } catch(e){ setError('Failed to load trades'); }
-    finally { setLoading(false); }
-  }
+  const params:any = { limit: PAGE_SIZE, skip: page * PAGE_SIZE, accountId: filters.accountId, start: filters.start, end: filters.end };
+  const { data: cachedTrades, loading } = useCachedGet<any[]>('/trades', params, { ttl: 20000, keepPrevious: true });
+  useEffect(()=>{ if (cachedTrades) setTrades(cachedTrades); }, [cachedTrades]);
+  useEffect(()=>{ if (!cachedTrades && !loading) setError('Failed to load trades'); else setError(null); }, [cachedTrades, loading]);
 
   function next(){ setPage(p => p + 1); }
   function prev(){ setPage(p => Math.max(0, p - 1)); }
@@ -93,7 +83,7 @@ export default function JournalPage(){
         <EditTradeModal
           trade={editingTrade}
           onClose={()=>setEditingTrade(null)}
-          onSaved={()=>{ setEditingTrade(null); load(); }}
+          onSaved={()=>{ setEditingTrade(null); /* trigger refetch */ }}
         />
       )}
     </div>
