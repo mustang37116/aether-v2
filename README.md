@@ -1,6 +1,8 @@
 # Aether Terminal
 
 Full-stack trading journal & analytics terminal: accounts, multi-asset fills-first trades, automated fees, equity curve, calendar heatmap, strategies, tags, CSV export, attachments, and currency conversion.
+
+> Deployment note (trigger): This README bump ensures the latest backend image & schema (no obsolete `setupRef`) redeploys. No functional changes.
 # Aether Terminal
 
 Full-stack trading journal & analytics terminal: accounts, multi-asset fills-first trades, automated fees, equity curve, calendar heatmap, strategies, tags, CSV export, attachments, and currency conversion.
