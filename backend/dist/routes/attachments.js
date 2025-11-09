@@ -18,17 +18,22 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 const router = Router();
 router.use(requireAuth);
-// Upload an attachment for a trade
-router.post('/', upload.single('file'), async (req, res) => {
+// Upload one or more attachments for a trade
+router.post('/', upload.array('file', 20), async (req, res) => {
     const { tradeId } = req.body;
-    if (!tradeId || !req.file)
+    const files = req.files;
+    if (!tradeId || !files || files.length === 0)
         return res.status(400).json({ error: 'missing tradeId or file' });
     const trade = await prisma.trade.findFirst({ where: { id: tradeId, userId: req.userId } });
     if (!trade)
         return res.status(404).json({ error: 'trade not found' });
-    const url = `/uploads/${req.file.filename}`;
-    const att = await prisma.attachment.create({ data: { tradeId, url } });
-    res.status(201).json(att);
+    const created = [];
+    for (const f of files) {
+        const url = `/uploads/${f.filename}`;
+        const att = await prisma.attachment.create({ data: { tradeId, url } });
+        created.push(att);
+    }
+    res.status(201).json(created);
 });
 // List attachments for a trade
 router.get('/', async (req, res) => {
@@ -40,5 +45,25 @@ router.get('/', async (req, res) => {
         return res.status(404).json({ error: 'trade not found' });
     const list = await prisma.attachment.findMany({ where: { tradeId }, orderBy: { createdAt: 'desc' } });
     res.json(list);
+});
+// Delete an attachment
+router.delete('/:id', async (req, res) => {
+    const { id } = req.params;
+    const att = await prisma.attachment.findFirst({ where: { id }, include: { trade: true } });
+    if (!att)
+        return res.status(404).json({ error: 'not found' });
+    if (att.trade.userId !== req.userId)
+        return res.status(403).json({ error: 'forbidden' });
+    // Attempt to remove file
+    try {
+        if (att.url && att.url.startsWith('/uploads/')) {
+            const filePath = path.join(process.cwd(), att.url);
+            if (fs.existsSync(filePath))
+                fs.unlinkSync(filePath);
+        }
+    }
+    catch { }
+    await prisma.attachment.delete({ where: { id } });
+    res.json({ ok: true });
 });
 export default router;

@@ -3,6 +3,72 @@ import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 router.use(requireAuth);
+// Local helpers mirroring trades route for fee recalculation
+function isFuturesSymbol(sym) { return !!sym && /=F$/i.test(sym.trim()); }
+function isMicroFuturesSymbol(sym) { const s = (sym || '').trim().toUpperCase(); return isFuturesSymbol(s) && s.startsWith('M'); }
+function perContractFeeFor(account, trade) {
+    if (!isFuturesSymbol(trade?.symbol))
+        return null;
+    const isMicro = isMicroFuturesSymbol(trade?.symbol);
+    const mini = account?.defaultFeePerMiniContract;
+    const micro = account?.defaultFeePerMicroContract;
+    if (isMicro && micro != null)
+        return Number(micro);
+    if (!isMicro && mini != null)
+        return Number(mini);
+    return null;
+}
+async function recalcFeesForAccount(accountId) {
+    const trades = await prisma.trade.findMany({ where: { accountId }, include: { account: true, tradeFills: true } });
+    for (const t of trades) {
+        const fills = t.tradeFills || [];
+        // Prefer futures defaults when present
+        let totalFees = 0;
+        const futPer = perContractFeeFor(t.account, t);
+        if (futPer != null) {
+            // Futures defaults represent round-trip per contract
+            if (fills.length) {
+                const qtyEntry = fills.filter((f) => f.type === 'ENTRY').reduce((s, f) => s + Number(f.size || 0), 0);
+                const qtyExit = fills.filter((f) => f.type === 'EXIT').reduce((s, f) => s + Number(f.size || 0), 0);
+                const realizedQty = Math.min(qtyEntry, qtyExit);
+                totalFees = futPer * realizedQty;
+            }
+            else {
+                const baseQty = Number(t.size || 0) || 0;
+                const realizedQty = t.exitPrice != null ? baseQty : 0;
+                totalFees = futPer * realizedQty;
+            }
+            await prisma.trade.update({ where: { id: t.id }, data: { fees: Number(totalFees.toFixed(6)) } });
+            continue;
+        }
+        // Otherwise use AccountFee matrix for this assetClass if exists
+        try {
+            const af = await prisma.accountFee.findFirst({ where: { accountId, assetClass: t.assetClass } });
+            if (af) {
+                if (af.mode === 'PER_CONTRACT_DOLLAR') {
+                    const per = Number(af.value);
+                    if (fills.length)
+                        totalFees = per * fills.reduce((s, f) => s + Number(f.size || 0), 0);
+                    else
+                        totalFees = per * (Number(t.size || 0) || 0) * (t.exitPrice ? 2 : 1);
+                }
+                else {
+                    const pct = Number(af.value) / 100;
+                    if (fills.length)
+                        totalFees = fills.reduce((s, f) => s + (Number(f.price) * Number(f.size) * pct), 0);
+                    else {
+                        const baseQty = Number(t.size || 0) || 0;
+                        const entry = Number(t.entryPrice || 0);
+                        const exit = t.exitPrice != null ? Number(t.exitPrice) : null;
+                        totalFees = (entry * baseQty * pct) + (exit != null ? (exit * baseQty * pct) : 0);
+                    }
+                }
+                await prisma.trade.update({ where: { id: t.id }, data: { fees: Number(totalFees.toFixed(6)) } });
+            }
+        }
+        catch { /* ignore */ }
+    }
+}
 router.get('/', async (req, res) => {
     // For now, AccountFee model may not yet be exposed by generated client if migration not re-generated.
     // Return accounts only; fee editing will use dedicated route after client regen.
@@ -43,6 +109,10 @@ router.patch('/:id', async (req, res) => {
     if (defaultFeePerMicroContract !== undefined)
         data.defaultFeePerMicroContract = defaultFeePerMicroContract;
     const updated = await prisma.account.update({ where: { id }, data });
+    // Recalc fees on all trades for this account when defaults change
+    if (defaultFeePerMiniContract !== undefined || defaultFeePerMicroContract !== undefined) {
+        await recalcFeesForAccount(id);
+    }
     res.json(updated);
 });
 // Delete an account and cascade its data
@@ -89,6 +159,8 @@ router.put('/:id/fees', async (req, res) => {
         });
     }
     const rows = await prisma.accountFee.findMany({ where: { accountId: id } });
+    // Recalc fees on all trades for this account when matrix changes
+    await recalcFeesForAccount(id);
     res.json({ fees: rows });
 });
 export default router;

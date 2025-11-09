@@ -9,7 +9,7 @@ router.use(requireAuth);
 router.get('/', async (req: AuthRequest, res: Response) => {
   const list = await (prisma as any).strategy.findMany({
     where: { userId: req.userId },
-    include: { _count: { select: { checklistItems: true, trades: true, tags: true } } },
+    include: { _count: { select: { trades: true, tags: true } } },
     orderBy: { name: 'asc' }
   } as any);
   res.json(list);
@@ -26,7 +26,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 // Get a single strategy with items and tags
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   const { id } = (req as any).params;
-  const s = await (prisma as any).strategy.findFirst({ where: { id, userId: req.userId }, include: { checklistItems: { orderBy: { order: 'asc' } }, tags: true } } as any);
+  const s = await (prisma as any).strategy.findFirst({ where: { id, userId: req.userId }, include: { tags: true } } as any);
   if (!s) return res.status(404).json({ error: 'strategy not found' });
   res.json(s);
 });
@@ -51,35 +51,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
   res.json({ ok: true });
 });
 
-// Checklist item CRUD
-router.post('/:id/items', async (req: AuthRequest, res: Response) => {
-  const { id } = (req as any).params;
-  const { text, required } = (req as any).body || {};
-  if (!text || String(text).trim().length < 2) return res.status(400).json({ error: 'text is required' });
-  const strategy = await (prisma as any).strategy.findFirst({ where: { id, userId: req.userId } });
-  if (!strategy) return res.status(404).json({ error: 'strategy not found' });
-  const maxOrder = await (prisma as any).strategyChecklistItem.aggregate({ where: { strategyId: id }, _max: { order: true } });
-  const order = (maxOrder._max.order ?? -1) + 1;
-  const item = await (prisma as any).strategyChecklistItem.create({ data: { strategyId: id, text: String(text).trim(), required: !!required, order } });
-  res.status(201).json(item);
-});
-
-router.patch('/items/:itemId', async (req: AuthRequest, res: Response) => {
-  const { itemId } = (req as any).params;
-  const { text, required, order } = (req as any).body || {};
-  const item = await (prisma as any).strategyChecklistItem.findFirst({ where: { id: itemId, strategy: { userId: req.userId } } } as any);
-  if (!item) return res.status(404).json({ error: 'item not found' });
-  const updated = await (prisma as any).strategyChecklistItem.update({ where: { id: itemId }, data: { text, required, order } });
-  res.json(updated);
-});
-
-router.delete('/items/:itemId', async (req: AuthRequest, res: Response) => {
-  const { itemId } = (req as any).params;
-  const item = await (prisma as any).strategyChecklistItem.findFirst({ where: { id: itemId, strategy: { userId: req.userId } } } as any);
-  if (!item) return res.status(404).json({ error: 'item not found' });
-  await (prisma as any).strategyChecklistItem.delete({ where: { id: itemId } });
-  res.json({ ok: true });
-});
+// Checklist item CRUD removed (playbook deprecated)
 
 // Strategy tags CRUD (separate from trade tags)
 router.post('/:id/tags', async (req: AuthRequest, res: Response) => {
