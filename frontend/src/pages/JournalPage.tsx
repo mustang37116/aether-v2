@@ -17,15 +17,12 @@ export default function JournalPage(){
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<any|null>(null);
   const [editingTrade, setEditingTrade] = useState<any|null>(null);
-  const [playbooks, setPlaybooks] = useState<any[]>([]);
-  const [playbookSetups, setPlaybookSetups] = useState<Record<string, any[]>>({});
   const PAGE_SIZE = 25;
 
   // Basic filters local (could reuse DashboardFilters later)
   const [filters, setFilters] = useState<Filters>(() => ({ start: dayjs().subtract(6,'month').format('YYYY-MM-DD') }));
 
   useEffect(()=>{ load(); }, [page, filters.accountId, filters.start, filters.end]);
-  useEffect(()=>{ (async()=>{ try { const r = await api.get('/playbooks'); setPlaybooks(r.data||[]); } catch{} })(); }, []);
 
   async function load(){
     try {
@@ -95,9 +92,6 @@ export default function JournalPage(){
       {editingTrade && (
         <EditTradeModal
           trade={editingTrade}
-          playbooks={playbooks}
-          loadPlaybook={async (id:string)=>{ try { const r = await api.get(`/playbooks/${id}`); setPlaybookSetups(ps => ({ ...ps, [id]: r.data.setups || [] })); return r.data.setups || []; } catch { return []; } }}
-          playbookSetups={playbookSetups}
           onClose={()=>setEditingTrade(null)}
           onSaved={()=>{ setEditingTrade(null); load(); }}
         />
@@ -257,7 +251,7 @@ function JournalDetail({ trade, onClose }: { trade:any; onClose:()=>void }){
   );
 }
 
-function EditTradeModal({ trade, onClose, onSaved, playbooks, loadPlaybook, playbookSetups }: { trade:any; onClose:()=>void; onSaved:()=>void; playbooks:any[]; loadPlaybook:(id:string)=>Promise<any[]>; playbookSetups: Record<string, any[]> }){
+function EditTradeModal({ trade, onClose, onSaved }: { trade:any; onClose:()=>void; onSaved:()=>void }){
   const api = useApi();
   const [saving, setSaving] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -275,8 +269,6 @@ function EditTradeModal({ trade, onClose, onSaved, playbooks, loadPlaybook, play
   });
   const [strategies, setStrategies] = useState<any[]>([]);
   const [strategyId, setStrategyId] = useState<string | ''>(trade.strategyId || '');
-  const [selectedPlaybookId, setSelectedPlaybookId] = useState<string>('');
-  const [setupId, setSetupId] = useState<string | ''>(trade.setupId || '');
   const [rPreview, setRPreview] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -312,12 +304,6 @@ function EditTradeModal({ trade, onClose, onSaved, playbooks, loadPlaybook, play
 
   useEffect(()=>{ (async()=>{ try { const r = await api.get('/attachments', { params: { tradeId: trade.id } }); setAttachments(r.data || []); } catch {} })(); }, [trade.id]);
   useEffect(()=>{ (async()=>{ try { const r = await api.get(`/trades/${trade.id}/fills`); setFills(r.data || []); } catch {} })(); }, [trade.id]);
-  // When a playbook is chosen ensure its setups are loaded
-  async function ensureSetups(pbId: string){
-    if (!pbId) return [];
-    if (playbookSetups[pbId]) return playbookSetups[pbId];
-    return await loadPlaybook(pbId);
-  }
 
   function update<K extends keyof typeof form>(k: K, v: any){ setForm(f=>({...f, [k]: v})); }
 
@@ -329,7 +315,6 @@ function EditTradeModal({ trade, onClose, onSaved, playbooks, loadPlaybook, play
     direction: form.direction,
     strategy: form.strategy,
     strategyId: strategyId || null,
-    setupId: setupId || null,
     notes: form.notes,
     confidence: Number(form.confidence),
     setupMode: form.setupMode,
@@ -428,20 +413,6 @@ function EditTradeModal({ trade, onClose, onSaved, playbooks, loadPlaybook, play
               <select value={strategyId} onChange={e=> setStrategyId(e.target.value)}>
                 <option value=''>None</option>
                 {strategies.map((s:any)=> <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </label>
-            <label className='form-field'>
-              <span>Playbook</span>
-              <select value={selectedPlaybookId} onChange={async e=> { const pbId = e.target.value; setSelectedPlaybookId(pbId); setSetupId(''); await ensureSetups(pbId); }}>
-                <option value=''>None</option>
-                {playbooks.map((p:any)=> <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </label>
-            <label className='form-field'>
-              <span>Setup</span>
-              <select value={setupId} onChange={e=> setSetupId(e.target.value)} disabled={!selectedPlaybookId}>
-                <option value=''>None</option>
-                {(playbookSetups[selectedPlaybookId] || []).map((st:any)=> <option key={st.id} value={st.id}>{st.name}</option>)}
               </select>
             </label>
             {/* Confidence */}
