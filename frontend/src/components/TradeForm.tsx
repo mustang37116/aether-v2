@@ -170,7 +170,7 @@ export default function TradeForm() {
         <span>Symbol</span>
         <SymbolAutocomplete value={form.symbol} onChange={v=> update('symbol', v)} />
       </label>
-      {loadingAccount && <div className='span-2'>Loading account...</div>}
+  {loadingAccount && accounts.length === 0 && <div className='span-2'>Loading account...</div>}
       {!loadingAccount && !accountId && (
         <div className='warn span-2'>No account detected. Go to Accounts page and create one first.</div>
       )}

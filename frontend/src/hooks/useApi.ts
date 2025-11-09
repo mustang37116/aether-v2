@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { useMemo } from 'react';
 
 // Resolve API base URL:
 // 1. Explicit env var VITE_API_BASE_URL
@@ -11,10 +12,15 @@ const baseURL = explicit || (sameOrigin ? sameOrigin + '/api' : 'http://localhos
 
 export function useApi() {
   const { token } = useAuth();
-  const client = axios.create({ baseURL });
-  client.interceptors.request.use(cfg => {
-    if (token) cfg.headers.Authorization = `Bearer ${token}`;
-    return cfg;
-  });
+  // Memoize client so identity is stable across renders (prevents effects from re-running endlessly)
+  const client = useMemo(() => {
+    const c = axios.create({ baseURL });
+    // Attach interceptor with current token
+    c.interceptors.request.use(cfg => {
+      if (token) cfg.headers.Authorization = `Bearer ${token}`;
+      return cfg;
+    });
+    return c;
+  }, [token]);
   return client;
 }
