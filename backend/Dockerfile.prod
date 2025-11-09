@@ -1,0 +1,28 @@
+FROM node:20 AS build
+WORKDIR /app
+
+# Install deps and generate Prisma client
+COPY package*.json tsconfig.json prisma ./
+RUN npm ci && npx prisma generate
+
+# Build TypeScript
+COPY src ./src
+RUN npm run build
+
+# --- Runtime image ---
+FROM node:20-slim
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Install only production deps
+COPY --from=build /app/package*.json ./
+RUN npm ci --omit=dev
+
+# Copy compiled app and prisma schema
+COPY --from=build /app/dist ./dist
+COPY prisma ./prisma
+
+EXPOSE 4000
+
+# Apply migrations then start the server
+CMD ["sh","-c","npx prisma migrate deploy && node dist/index.js"]

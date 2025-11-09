@@ -1,6 +1,9 @@
 # Aether Terminal
 
 Full-stack trading journal & analytics terminal: accounts, multi-asset fills-first trades, automated fees, equity curve, calendar heatmap, strategies, tags, CSV export, attachments, and currency conversion.
+# Aether Terminal
+
+Full-stack trading journal & analytics terminal: accounts, multi-asset fills-first trades, automated fees, equity curve, calendar heatmap, strategies, tags, CSV export, attachments, and currency conversion.
 
 ## Monorepo Structure
 - `backend` Node + Express + Prisma (Postgres)
@@ -115,4 +118,99 @@ R = reward / risk
 - More analytics (per-tag breakdown, rolling metrics, filters)
 - Robust currency feeds/seed data and backfill tools
 - E2E tests and seed script
+# aether-v2
+
+## Free Tier Deployment Guide (Frontend on Vercel + Free Backend Stack)
+
+Below are two practical free backend approaches that pair well with the Vercel-hosted frontend. In both cases, set `VITE_API_BASE_URL` in Vercel project settings so the React app calls the live API.
+
+### Option A (Least Refactor): Container Host + Managed Postgres
+Use a free container host (Koyeb / Railway / Fly.io) to run the existing `backend` Docker image and a free managed/serverless Postgres (Neon, Supabase, or Railway Postgres). This preserves current Express + file upload code (though long-term move uploads to object storage):
+
+1. Provision Postgres (Neon or Supabase). Copy the connection string into `DATABASE_URL` (ensure `?schema=public`).
+2. On container host, create a service from `backend/` directory (Dockerfile build) or build & push to a registry first.
+3. Set env vars: `DATABASE_URL`, `JWT_SECRET`, `PORT=4000`.
+4. Ensure start command runs migrations once before serving traffic, e.g. change Docker CMD to: `sh -c "npx prisma migrate deploy && node dist/index.js"` (production build required).
+5. Expose port 4000 → get public URL (e.g. `https://aether-backend.fly.dev`).
+6. In Vercel Project (frontend), add `VITE_API_BASE_URL=https://aether-backend.fly.dev`.
+7. Redeploy frontend; open browser dev tools and verify API calls hit the backend host.
+
+Pros: minimal code changes. Cons: cold start depends on host; free tiers may sleep.
+
+### Option B (More “Serverless”): Supabase for DB + Storage + Auth (Partial Migration)
+If you later migrate auth/files:
+1. Keep custom Express API for domain logic but move file uploads to Supabase Storage (S3-like) and optionally replace JWT auth with Supabase Auth tokens.
+2. Replace local `/uploads` static serving with signed URLs from Storage.
+3. Benefit: Durable storage + less need for your own file infrastructure.
+
+### Not Recommended Early: Full Serverless Refactor on Vercel
+Would require splitting Express routes into Vercel Functions, moving file storage out, and handling prisma migrations externally.
+
+### Environment Variables Summary
+Frontend (Vercel settings):
+```
+VITE_API_BASE_URL=https://YOUR_BACKEND_HOST
+```
+Backend (Container host):
+```
+DATABASE_URL=postgresql://<user>:<pass>@<host>:<port>/<db>?schema=public
+JWT_SECRET=generate_a_long_random_value
+PORT=4000
+```
+
+### Production Backend Dockerfile (Example)
+Create `backend/Dockerfile.prod`:
+```
+FROM node:20 AS build
+WORKDIR /app
+COPY package*.json tsconfig.json prisma ./
+RUN npm ci && npx prisma generate
+COPY src ./src
+RUN npm run build
+
+FROM node:20-slim
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app/package*.json ./
+RUN npm ci --omit=dev
+COPY --from=build /app/dist ./dist
+COPY prisma ./prisma
+EXPOSE 4000
+CMD ["sh","-c","npx prisma migrate deploy && node dist/index.js"]
+```
+Then build & push: `docker build -f backend/Dockerfile.prod -t yourrepo/aether-backend:latest backend`.
+
+### Simple GitHub Action (Build & Push Backend Image)
+```
+name: backend-image
+on: [push]
+jobs:
+	build:
+		runs-on: ubuntu-latest
+		steps:
+			- uses: actions/checkout@v4
+			- uses: docker/setup-buildx-action@v3
+			- uses: docker/login-action@v3
+				with:
+					registry: docker.io
+					username: ${{ secrets.DOCKER_USER }}
+					password: ${{ secrets.DOCKER_PASS }}
+			- name: Build & push
+				run: |
+					docker build -f backend/Dockerfile.prod -t docker.io/${{ secrets.DOCKER_USER }}/aether-backend:latest backend
+					docker push docker.io/${{ secrets.DOCKER_USER }}/aether-backend:latest
+```
+Deploy host (Koyeb/Railway/Fly) pulls updated image automatically or via webhook.
+
+### Verifying Deployment
+1. Hit `/health` on backend URL → expect `{"status":"ok"}`.
+2. Register a user via `/auth/register` POST.
+3. Login → copy JWT; test an authenticated endpoint with `Authorization: Bearer <token>`.
+4. Use frontend; check network tab for `VITE_API_BASE_URL` origin, no CORS errors, 200 responses.
+
+### Next Upgrades
+- Move attachments to object storage (S3/R2) and store only object keys in DB.
+- Add monitoring (health pings) to keep free tier containers warm.
+- Add a dedicated migration job in CI (avoid running migrations on every cold start).
+
 # aether-v2

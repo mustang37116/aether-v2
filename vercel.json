@@ -1,0 +1,13 @@
+{
+  "rewrites": [
+    { "source": "/health", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/assets/(.*)\\.(js|css|png|jpg|jpeg|gif|svg)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public,max-age=604800,immutable" }
+      ]
+    }
+  ]
+}
