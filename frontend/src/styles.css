@@ -13,9 +13,8 @@
 *{ box-sizing: border-box; }
 html, body, #root { height: 100%; }
 main, .app-shell, .dashboard-root { max-width: 1280px; margin: 0 auto; }
-/* Prevent horizontal overflow */
-/* Allow horizontal scroll if nav overflows on small screens so right-side buttons remain accessible */
-body { overflow-x: auto; }
+/* Prevent horizontal overflow site-wide (individual components can scroll internally) */
+body { overflow-x: hidden; }
 body { margin:0; font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background: radial-gradient(1200px 800px at 20% -10%, #1f2a44 0%, transparent 60%), radial-gradient(1000px 600px at 120% 20%, #4c1d95 0%, transparent 60%), radial-gradient(800px 800px at -10% 110%, #0e7490 0%, transparent 60%), linear-gradient(135deg,#0b0d10 0%, #0f172a 100%); color: var(--text); }
 body::before{
 	content:'';
@@ -168,6 +167,18 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 	flex: 1 1 auto;
 	overflow-y: auto;
 	padding-right: 4px; /* subtle breathing room for scrollbar */
+}
+
+/* Strategies page responsive helpers */
+.strategies-grid { max-width: 100%; }
+@media (max-width: 860px) {
+	.strategies-grid { grid-template-columns: 1fr !important; }
+	.strategies-input-row input { flex: 1 1 280px; min-width: 0; }
+	.strategies-input-row button { flex: 0 0 auto; }
+}
+@media (max-width: 520px) {
+	.strategies-input-row input { flex: 1 1 100%; }
+	.strategies-input-row button { width: 100%; }
 }
 .modal-overlay-view.modal-long,
 .modal-overlay-edit.modal-long {

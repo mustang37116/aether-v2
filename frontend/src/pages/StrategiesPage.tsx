@@ -18,9 +18,9 @@ export default function StrategiesPage(){
   return (
     <div style={{display:'grid', gap:16}}>
       <h2 style={{margin:0}}>Strategies</h2>
-      <div className='glass-panel' style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:16}}>
+      <div className='glass-panel strategies-grid' style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:16}}>
         <div style={{display:'grid', gap:8}}>
-          <div style={{display:'flex', gap:8}}>
+          <div className='strategies-input-row' style={{display:'flex', gap:8, flexWrap:'wrap'}}>
             <input placeholder='New strategy name' value={name} onChange={e=>setName(e.target.value)} />
             <input placeholder='Description (optional)' value={desc} onChange={e=>setDesc(e.target.value)} />
             <button onClick={create}>Create</button>
