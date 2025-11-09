@@ -15,6 +15,11 @@ FROM node:20-slim
 WORKDIR /app/backend
 ENV NODE_ENV=production
 
+# Install system deps required by Prisma engines (OpenSSL) and certs
+RUN apt-get update -y \
+	&& apt-get install -y --no-install-recommends openssl ca-certificates \
+	&& rm -rf /var/lib/apt/lists/*
+
 # Install only production deps
 COPY --from=build /app/backend/package*.json ./
 RUN npm ci --omit=dev
