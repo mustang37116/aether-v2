@@ -29,6 +29,10 @@ export default function TradeForm() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [strategies, setStrategies] = useState<any[]>([]);
   const [strategyId, setStrategyId] = useState<string|undefined>(undefined);
+  const [playbooks, setPlaybooks] = useState<any[]>([]);
+  const [selectedPlaybookId, setSelectedPlaybookId] = useState<string>('');
+  const [setups, setSetups] = useState<any[]>([]);
+  const [setupId, setSetupId] = useState<string>('');
   const [loadingAccount, setLoadingAccount] = useState(false);
   const saveTimer = useRef<number | null>(null);
   // Load default account automatically with precedence:
@@ -42,10 +46,11 @@ export default function TradeForm() {
       setLoadingAccount(true);
       try {
         // Fetch accounts, settings (favorite), and strategies
-        const [acctRes, settingsRes, stratRes] = await Promise.all([
+        const [acctRes, settingsRes, stratRes, pbRes] = await Promise.all([
           api.get('/accounts'),
           api.get('/settings').catch(()=>({ data: {} })),
-          api.get('/strategies').catch(()=>({ data: [] }))
+          api.get('/strategies').catch(()=>({ data: [] })),
+          api.get('/playbooks').catch(()=>({ data: [] })),
         ]);
         if (!mounted) return;
         setAccounts(acctRes.data || []);
@@ -57,6 +62,7 @@ export default function TradeForm() {
         if (exists(last)) setAccountId(last as string);
         else if (exists(fav)) setAccountId(fav as string);
         else if (list.length > 0) setAccountId(list[0].id);
+        setPlaybooks(pbRes.data || []);
       } catch (e) {
         // silently ignore for now (could surface a banner later)
       } finally {
@@ -105,6 +111,7 @@ export default function TradeForm() {
       accountId,
       symbol: form.symbol,
     strategyId: strategyId || undefined,
+      setupId: setupId || undefined,
       direction: form.direction,
       stopPrice: form.stopPrice ? Number(form.stopPrice) : undefined,
       targetPrice: form.targetPrice ? Number(form.targetPrice) : undefined,
@@ -180,6 +187,20 @@ export default function TradeForm() {
         <select value={strategyId || ''} onChange={e=> setStrategyId(e.target.value || undefined)}>
           <option value=''>None</option>
           {strategies.map((s:any)=> <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </label>
+      <label className='form-field'>
+        <span>Playbook</span>
+        <select value={selectedPlaybookId} onChange={async e=> { const id = e.target.value; setSelectedPlaybookId(id); setSetupId(''); try { if (id) { const r = await api.get(`/playbooks/${id}`); setSetups(r.data?.setups || []); } else { setSetups([]); } } catch { setSetups([]); } }}>
+          <option value=''>None</option>
+          {playbooks.map((p:any)=> <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </label>
+      <label className='form-field'>
+        <span>Setup</span>
+        <select value={setupId} onChange={e=> setSetupId(e.target.value)} disabled={!selectedPlaybookId}>
+          <option value=''>None</option>
+          {setups.map((s:any)=> <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
       </label>
       {/* Row 3: Notes full width */}

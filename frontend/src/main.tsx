@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import TradePage from './pages/TradePage';
 import TagsPage from './pages/TagsPage';
 import StrategiesPage from './pages/StrategiesPage';
+import PlaybooksPage from './pages/PlaybooksPage';
 import AccountsPage from './pages/AccountsPage';
 import AccountSettingsPage from './pages/AccountSettingsPage';
 import { useParams } from 'react-router-dom';
@@ -33,6 +34,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path='dashboard' element={<Protected><DashboardPage /></Protected>} />
             <Route path='trades' element={<Protected><TradePage /></Protected>} />
             <Route path='strategies' element={<Protected><StrategiesPage /></Protected>} />
+            <Route path='playbooks' element={<Protected><PlaybooksPage /></Protected>} />
             <Route path='accounts' element={<Protected><AccountsPage /></Protected>} />
             <Route path='accounts/:accountId/settings' element={<Protected><AccountSettingsWrapper /></Protected>} />
             <Route path='auth' element={<AuthPage />} />

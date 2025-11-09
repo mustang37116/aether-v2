@@ -156,7 +156,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     if (end) where.entryTime.lte = new Date(end);
   }
   const take = limit ? Math.min(Number(limit), 200) : undefined;
-  const trades = await prisma.trade.findMany({ where, include: { tradeTags: { include: { tag: true } }, attachments: true, tradeFills: true, strategyRef: true } as any, orderBy: { entryTime: 'desc' }, take, skip: skip ? Number(skip) : undefined });
+  const trades = await prisma.trade.findMany({ where, include: { tradeTags: { include: { tag: true } }, attachments: true, tradeFills: true, strategyRef: true, setupRef: { include: { strategy: true, playbook: true, checklistItems: true } } } as any, orderBy: { entryTime: 'desc' }, take, skip: skip ? Number(skip) : undefined });
   const enriched = trades.map((t: any) => {
     // Compute metrics direction-aware; if fills exist prefer avg ENTRY price + total ENTRY size.
     let metrics: any = null;
@@ -202,7 +202,14 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     }
     // Include strategy metadata if present without overwriting legacy string field
     const strategyMeta = (t as any).strategyRef ? { id: (t as any).strategyRef.id, name: (t as any).strategyRef.name } : null;
-    return { ...t, metrics, holdTimeSeconds, pnl, tags, attachments, strategyMeta };
+    const setupMeta = (t as any).setupRef ? {
+      id: (t as any).setupRef.id,
+      name: (t as any).setupRef.name,
+      playbook: (t as any).setupRef.playbook ? { id: (t as any).setupRef.playbook.id, name: (t as any).setupRef.playbook.name } : null,
+      strategy: (t as any).setupRef.strategy ? { id: (t as any).setupRef.strategy.id, name: (t as any).setupRef.strategy.name } : null,
+      checklistItems: ((t as any).setupRef.checklistItems || []).map((ci: any) => ({ id: ci.id, text: ci.text, order: ci.order, required: ci.required }))
+    } : null;
+    return { ...t, metrics, holdTimeSeconds, pnl, tags, attachments, strategyMeta, setupMeta };
   });
   res.json(enriched);
 });
@@ -210,7 +217,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 // Fetch a single trade (enriched) by id
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   const { id } = (req as any).params;
-  const t: any = await prisma.trade.findFirst({ where: { id, userId: req.userId }, include: { tradeTags: { include: { tag: true } }, attachments: true, tradeFills: true } as any });
+  const t: any = await prisma.trade.findFirst({ where: { id, userId: req.userId }, include: { tradeTags: { include: { tag: true } }, attachments: true, tradeFills: true, setupRef: { include: { strategy: true, playbook: true, checklistItems: true } } } as any });
   if (!t) return res.status(404).json({ error: 'trade not found' });
   let metrics: any = null;
   const tags = (t.tradeTags?.map((tt: any) => ({ id: tt.tag.id, name: tt.tag.name })) || []);
@@ -252,7 +259,14 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
       metrics = calcRiskRewardR(Number(t.entryPrice), Number(t.stopPrice), Number(t.targetPrice), Number(t.size), t.direction || 'LONG');
     }
   }
-  return res.json({ ...t, metrics, holdTimeSeconds, pnl, tags, attachments });
+  const setupMeta = (t as any).setupRef ? {
+    id: (t as any).setupRef.id,
+    name: (t as any).setupRef.name,
+    playbook: (t as any).setupRef.playbook ? { id: (t as any).setupRef.playbook.id, name: (t as any).setupRef.playbook.name } : null,
+    strategy: (t as any).setupRef.strategy ? { id: (t as any).setupRef.strategy.id, name: (t as any).setupRef.strategy.name } : null,
+    checklistItems: ((t as any).setupRef.checklistItems || []).map((ci: any) => ({ id: ci.id, text: ci.text, order: ci.order, required: ci.required }))
+  } : null;
+  return res.json({ ...t, metrics, holdTimeSeconds, pnl, tags, attachments, setupMeta });
 });
 
 // List deleted trades (recent first)
@@ -274,7 +288,7 @@ router.put('/:id/exit', async (req: AuthRequest, res: Response) => {
 });
 
 router.post('/', async (req: AuthRequest, res: Response) => {
-  const { accountId, symbol, assetClass, direction, size, entryPrice, entryTime, stopPrice, targetPrice, setupMode, strategy, strategyId, notes, confidence, tags, exitPrice, exitTime, fills, fees } = (req as any).body;
+  const { accountId, symbol, assetClass, direction, size, entryPrice, entryTime, stopPrice, targetPrice, setupMode, strategy, strategyId, setupId, notes, confidence, tags, exitPrice, exitTime, fills, fees } = (req as any).body;
   // Derive assetClass if not provided
   const derived = await resolveAssetClassAndSymbol(symbol);
   const finalAssetClass = assetClass || derived.assetClass;
@@ -289,7 +303,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     if (!baseEntryPrice) baseEntryPrice = firstEntry.price;
     if (!baseEntryTime) baseEntryTime = firstEntry.time || new Date().toISOString();
   }
-  const trade = await prisma.trade.create({ data: { accountId, userId: req.userId!, symbol, assetClass: finalAssetClass as any, direction: direction || null, size: baseSize, entryPrice: baseEntryPrice, entryTime: new Date(baseEntryTime), stopPrice, targetPrice, setupMode: !!setupMode, strategy: strategy || null, strategyId: strategyId || null, notes: notes || null, confidence: typeof confidence === 'number' ? confidence : null, exitPrice: exitPrice ?? null, exitTime: exitTime ? new Date(exitTime) : null, fees: fees != null ? Number(fees) : null } as any });
+  const trade = await prisma.trade.create({ data: { accountId, userId: req.userId!, symbol, assetClass: finalAssetClass as any, direction: direction || null, size: baseSize, entryPrice: baseEntryPrice, entryTime: new Date(baseEntryTime), stopPrice, targetPrice, setupMode: !!setupMode, strategy: strategy || null, strategyId: strategyId || null, setupId: setupId || null, notes: notes || null, confidence: typeof confidence === 'number' ? confidence : null, exitPrice: exitPrice ?? null, exitTime: exitTime ? new Date(exitTime) : null, fees: fees != null ? Number(fees) : null } as any });
   // Handle tags: list of tag names
   if (Array.isArray(tags) && tags.length) {
     for (const name of tags) {
@@ -354,6 +368,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
     targetPrice,
   strategy,
   strategyId,
+  setupId,
     notes,
     confidence,
     setupMode,
@@ -379,6 +394,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
   if (targetPrice !== undefined) data.targetPrice = targetPrice === null ? null : targetPrice;
   if (strategy !== undefined) data.strategy = strategy;
   if (strategyId !== undefined) data.strategyId = strategyId === null ? null : strategyId;
+  if (setupId !== undefined) data.setupId = setupId === null ? null : setupId;
   if (notes !== undefined) data.notes = notes;
   if (typeof confidence === 'number') data.confidence = confidence;
   if (typeof setupMode === 'boolean') data.setupMode = setupMode;
