@@ -188,7 +188,7 @@ router.get('/', async (req, res) => {
             where.entryTime.lte = new Date(end);
     }
     const take = limit ? Math.min(Number(limit), 200) : undefined;
-    const trades = await prisma.trade.findMany({ where, include: { tradeTags: { include: { tag: true } }, attachments: true, tradeFills: true, strategyRef: true, setupRef: { include: { strategy: true, playbook: true, checklistItems: true } } }, orderBy: { entryTime: 'desc' }, take, skip: skip ? Number(skip) : undefined });
+    const trades = await prisma.trade.findMany({ where, include: { tradeTags: { include: { tag: true } }, attachments: true, tradeFills: true, strategyRef: true }, orderBy: { entryTime: 'desc' }, take, skip: skip ? Number(skip) : undefined });
     const enriched = trades.map((t) => {
         // Compute metrics direction-aware; if fills exist prefer avg ENTRY price + total ENTRY size.
         let metrics = null;
@@ -236,21 +236,14 @@ router.get('/', async (req, res) => {
         }
         // Include strategy metadata if present without overwriting legacy string field
         const strategyMeta = t.strategyRef ? { id: t.strategyRef.id, name: t.strategyRef.name } : null;
-        const setupMeta = t.setupRef ? {
-            id: t.setupRef.id,
-            name: t.setupRef.name,
-            playbook: t.setupRef.playbook ? { id: t.setupRef.playbook.id, name: t.setupRef.playbook.name } : null,
-            strategy: t.setupRef.strategy ? { id: t.setupRef.strategy.id, name: t.setupRef.strategy.name } : null,
-            checklistItems: (t.setupRef.checklistItems || []).map((ci) => ({ id: ci.id, text: ci.text, order: ci.order, required: ci.required }))
-        } : null;
-        return { ...t, metrics, holdTimeSeconds, pnl, tags, attachments, strategyMeta, setupMeta };
+        return { ...t, metrics, holdTimeSeconds, pnl, tags, attachments, strategyMeta };
     });
     res.json(enriched);
 });
 // Fetch a single trade (enriched) by id
 router.get('/:id', async (req, res) => {
     const { id } = req.params;
-    const t = await prisma.trade.findFirst({ where: { id, userId: req.userId }, include: { tradeTags: { include: { tag: true } }, attachments: true, tradeFills: true, setupRef: { include: { strategy: true, playbook: true, checklistItems: true } } } });
+    const t = await prisma.trade.findFirst({ where: { id, userId: req.userId }, include: { tradeTags: { include: { tag: true } }, attachments: true, tradeFills: true } });
     if (!t)
         return res.status(404).json({ error: 'trade not found' });
     let metrics = null;
@@ -295,14 +288,7 @@ router.get('/:id', async (req, res) => {
             metrics = calcRiskRewardR(Number(t.entryPrice), Number(t.stopPrice), Number(t.targetPrice), Number(t.size), t.direction || 'LONG');
         }
     }
-    const setupMeta = t.setupRef ? {
-        id: t.setupRef.id,
-        name: t.setupRef.name,
-        playbook: t.setupRef.playbook ? { id: t.setupRef.playbook.id, name: t.setupRef.playbook.name } : null,
-        strategy: t.setupRef.strategy ? { id: t.setupRef.strategy.id, name: t.setupRef.strategy.name } : null,
-        checklistItems: (t.setupRef.checklistItems || []).map((ci) => ({ id: ci.id, text: ci.text, order: ci.order, required: ci.required }))
-    } : null;
-    return res.json({ ...t, metrics, holdTimeSeconds, pnl, tags, attachments, setupMeta });
+    return res.json({ ...t, metrics, holdTimeSeconds, pnl, tags, attachments });
 });
 // List deleted trades (recent first)
 router.get('/deleted', async (req, res) => {
