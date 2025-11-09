@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 // 3. Dev fallback localhost
 const explicit = (import.meta as any).env?.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE_URL;
 const sameOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
-const baseURL = explicit || sameOrigin || 'http://localhost:4000';
+const baseURL = explicit || (sameOrigin ? sameOrigin + '/api' : 'http://localhost:4000/api');
 
 export function useApi() {
   const { token } = useAuth();

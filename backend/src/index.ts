@@ -26,21 +26,9 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 const frontendRoot = path.join(process.cwd(), 'public');
 if (fs.existsSync(frontendRoot)) {
 	app.use(express.static(frontendRoot));
-	// SPA fallback: return index.html for non-API GET requests
+	// SPA fallback: for GET requests not targeting /api, /uploads or /health, serve index.html
 	app.get('*', (req, res, next) => {
-		if (req.path.startsWith('/auth') ||
-				req.path.startsWith('/accounts') ||
-				req.path.startsWith('/trades') ||
-				req.path.startsWith('/tags') ||
-				req.path.startsWith('/analytics') ||
-				req.path.startsWith('/transactions') ||
-				req.path.startsWith('/settings') ||
-				req.path.startsWith('/strategies') ||
-				req.path.startsWith('/csv') ||
-				req.path.startsWith('/backup') ||
-				req.path.startsWith('/attachments') ||
-				req.path.startsWith('/marketdata') ||
-				req.path.startsWith('/health')) {
+		if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/health')) {
 			return next();
 		}
 		const indexFile = path.join(frontendRoot, 'index.html');
@@ -50,18 +38,19 @@ if (fs.existsSync(frontendRoot)) {
 }
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
-app.use('/auth', authRouter);
-app.use('/accounts', accountRouter);
-app.use('/trades', tradeRouter);
-app.use('/tags', tagRouter);
-app.use('/analytics', analyticsRouter);
-app.use('/transactions', transactionsRouter);
-app.use('/settings', settingsRouter);
-app.use('/strategies', strategiesRouter);
-app.use('/csv', csvRouter);
-app.use('/backup', backupRouter);
-app.use('/attachments', attachmentsRouter);
-app.use('/marketdata', marketdataRouter);
+// Mount API under /api to avoid clashing with SPA routes
+app.use('/api/auth', authRouter);
+app.use('/api/accounts', accountRouter);
+app.use('/api/trades', tradeRouter);
+app.use('/api/tags', tagRouter);
+app.use('/api/analytics', analyticsRouter);
+app.use('/api/transactions', transactionsRouter);
+app.use('/api/settings', settingsRouter);
+app.use('/api/strategies', strategiesRouter);
+app.use('/api/csv', csvRouter);
+app.use('/api/backup', backupRouter);
+app.use('/api/attachments', attachmentsRouter);
+app.use('/api/marketdata', marketdataRouter);
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => console.log(`Backend listening on ${port}`));

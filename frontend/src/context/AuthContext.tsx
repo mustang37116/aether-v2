@@ -4,7 +4,8 @@ import axios from 'axios';
 // Determine API root similarly to useApi hook for consistency
 const explicit = (import.meta as any).env?.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE_URL;
 const sameOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
-const API_ROOT = explicit || sameOrigin || 'http://localhost:4000';
+// If backend serves API under /api on same origin, relative /api is cleaner.
+const API_ROOT = explicit || (sameOrigin ? sameOrigin + '/api' : 'http://localhost:4000/api');
 
 interface AuthCtx {
   token: string | null;
@@ -24,7 +25,7 @@ export function AuthProvider({ children }: { children: any }) {
 
   async function register(email: string, password: string) {
     try {
-      const res = await axios.post(`${API_ROOT}/auth/register`, { email, password });
+  const res = await axios.post(`${API_ROOT}/auth/register`, { email, password });
       setToken(res.data.token);
     } catch (e:any) {
       console.error('Register failed', e?.response?.data || e.message);
@@ -33,7 +34,7 @@ export function AuthProvider({ children }: { children: any }) {
   }
   async function login(email: string, password: string) {
     try {
-      const res = await axios.post(`${API_ROOT}/auth/login`, { email, password });
+  const res = await axios.post(`${API_ROOT}/auth/login`, { email, password });
       setToken(res.data.token);
     } catch (e:any) {
       console.error('Login failed', e?.response?.data || e.message);
