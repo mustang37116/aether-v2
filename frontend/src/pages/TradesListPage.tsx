@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_BASE } from '../apiBase';
 import { useApi } from '../hooks/useApi';
 import dayjs from 'dayjs';
 
@@ -101,7 +102,7 @@ export default function TradesListPage() {
                     <div style={{display:'grid', gap:4}}>
                       {attachments[t.id].map(att => (
                         <div key={att.id} style={{display:'flex', alignItems:'center', gap:6}}>
-                          <a href={`http://localhost:4000${att.url}`} target='_blank' rel='noreferrer' style={{fontSize:11}}>Attachment</a>
+                          <a href={`${API_BASE.replace(/\/api$/, '')}${att.url}`} target='_blank' rel='noreferrer' style={{fontSize:11}}>Attachment</a>
                           <button type='button'
                             style={{background:'transparent', color:'var(--danger)', fontSize:10}}
                             onClick={()=>onDeleteAttachment(api, t.id, att.id)}>

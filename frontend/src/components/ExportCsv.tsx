@@ -1,9 +1,10 @@
 import { useAuth } from '../context/AuthContext';
+import { apiUrl } from '../apiBase';
 
 export default function ExportCsv(){
   const { token } = useAuth();
   function download(kind: 'trades'|'transactions'){
-    const url = `http://localhost:4000/csv/${kind}`;
+  const url = apiUrl(`/csv/${kind}`);
     const a = document.createElement('a');
     a.href = url;
     if (token) {

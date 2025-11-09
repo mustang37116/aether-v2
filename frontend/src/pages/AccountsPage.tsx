@@ -27,7 +27,7 @@ export default function AccountsPage() {
         if (e?.response?.status === 401) {
           setError('Not authenticated. Go to Auth page (/auth), register or login, then return here.');
         } else {
-          setError('Failed to load accounts. Check backend is running on http://localhost:4000.');
+          setError('Failed to load accounts. Backend unreachable or error.');
         }
       } finally {
         if (mounted) setLoading(false);

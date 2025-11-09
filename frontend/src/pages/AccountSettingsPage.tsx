@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiUrl } from '../apiBase';
 import { useApi } from '../hooks/useApi';
 
 type AssetClass = 'STOCK' | 'OPTION' | 'FUTURE' | 'FOREX' | 'CRYPTO';
@@ -94,7 +95,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
       <div>{account?.name || 'Account'} <span style={{fontSize:14, opacity:.6}}>{account?.currency}</span></div>
       {account && <button style={{background:'#3b0b0b'}} onClick={async()=>{
         if (!confirm(`Delete account "${account.name}" and all its trades & transactions? This cannot be undone.`)) return;
-        const r = await fetch(`http://localhost:4000/accounts/${account.id}`, { method:'DELETE', headers:{ Authorization: `Bearer ${localStorage.getItem('token')||''}` }});
+  const r = await fetch(apiUrl(`/accounts/${account.id}`), { method:'DELETE', headers:{ Authorization: `Bearer ${localStorage.getItem('token')||''}` }});
         if (r.ok) {
           alert('Account deleted');
           window.location.href = '/accounts';
@@ -106,7 +107,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
     <div style={{display:'flex', gap:8, flexWrap:'wrap', marginBottom:12}}>
       {account && <>
         <button type='button' onClick={async()=>{
-          const url = `http://localhost:4000/csv/trades?accountId=${account.id}`;
+          const url = apiUrl(`/csv/trades?accountId=${account.id}`);
           const r = await fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
           const blob = await r.blob();
           const a = document.createElement('a');
@@ -116,7 +117,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
           URL.revokeObjectURL(a.href);
         }}>Export Trades CSV</button>
         <button type='button' onClick={async()=>{
-          const url = `http://localhost:4000/csv/transactions?accountId=${account.id}`;
+          const url = apiUrl(`/csv/transactions?accountId=${account.id}`);
           const r = await fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
           const blob = await r.blob();
           const a = document.createElement('a');
@@ -126,7 +127,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
           URL.revokeObjectURL(a.href);
         }}>Export Transactions CSV</button>
         <button type='button' onClick={async()=>{
-          const url = `http://localhost:4000/csv/account-bundle?accountId=${account.id}`;
+          const url = apiUrl(`/csv/account-bundle?accountId=${account.id}`);
           const r = await fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
           const blob = await r.blob();
           const a = document.createElement('a');
@@ -141,7 +142,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
             const f = e.target.files?.[0]; if (!f) return;
             const form = new FormData(); form.append('file', f); form.append('accountId', account.id);
             try {
-              const r = await fetch('http://localhost:4000/csv/trades/import', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` }, body: form });
+              const r = await fetch(apiUrl('/csv/trades/import'), { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` }, body: form });
               const j = await r.json();
               alert(`Imported ${j.imported||0}, updated ${j.updated||0}`);
             } catch { alert('Import failed'); }
@@ -154,10 +155,10 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
             const f = e.target.files?.[0]; if (!f) return;
             const form = new FormData(); form.append('file', f); form.append('accountId', account.id);
             try {
-              const r = await fetch('http://localhost:4000/csv/transactions/import', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` }, body: form });
+              const r = await fetch(apiUrl('/csv/transactions/import'), { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` }, body: form });
               const j = await r.json();
               alert(`Imported ${j.imported||0}, updated ${j.updated||0}`);
-              const txRes = await fetch(`http://localhost:4000/transactions?accountId=${account.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` }});
+              const txRes = await fetch(apiUrl(`/transactions?accountId=${account.id}`), { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` }});
               const txJson = await txRes.json();
               setTransactions(txJson);
             } catch { alert('Import failed'); }
@@ -227,7 +228,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
           <td>{tx.currency}</td>
           <td><button style={{fontSize:12}} onClick={async()=>{
             if (!confirm('Delete this transaction?')) return;
-            await fetch(`http://localhost:4000/transactions/${tx.id}`, { method:'DELETE', headers:{ Authorization: `Bearer ${localStorage.getItem('token')||''}` }});
+            await fetch(apiUrl(`/transactions/${tx.id}`), { method:'DELETE', headers:{ Authorization: `Bearer ${localStorage.getItem('token')||''}` }});
             setTransactions(t => t.filter(x => x.id !== tx.id));
           }}>✕</button></td>
         </tr>)}

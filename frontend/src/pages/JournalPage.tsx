@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE } from '../apiBase';
 import { useApi } from '../hooks/useApi';
 import dayjs from 'dayjs';
 import TradeChart from '../components/TradeChart';
@@ -214,17 +215,17 @@ function JournalDetail({ trade, onClose }: { trade:any; onClose:()=>void }){
             <div style={{fontSize:12, opacity:0.7, marginBottom:4}}>Attachments</div>
             {attachments.length ? (
               <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))', gap:8}}>
-                {attachments.map(att => (
-                  <div key={att.id} style={{background:'rgba(255,255,255,0.06)', borderRadius:6, padding:6, display:'grid', gap:6, alignItems:'center', justifyItems:'center'}}>
-                    {isImage(att.url) ? (
-                      <a href={`http://localhost:4000${att.url}`} target='_blank' rel='noreferrer' style={{display:'block', width:'100%'}}>
-                        <img src={`http://localhost:4000${att.url}`} alt={fileName(att.url)} style={{width:'100%', height:100, objectFit:'cover', borderRadius:4}} />
-                      </a>
-                    ) : (
-                      <a href={`http://localhost:4000${att.url}`} target='_blank' rel='noreferrer' style={{fontSize:12, wordBreak:'break-all'}}>Download {fileName(att.url)}</a>
-                    )}
-                  </div>
-                ))}
+                  {attachments.map(att => (
+                    <div key={att.id} style={{background:'rgba(255,255,255,0.06)', borderRadius:6, padding:6, display:'grid', gap:6, alignItems:'center', justifyItems:'center'}}>
+                      {isImage(att.url) ? (
+                        <a href={`${API_BASE.replace(/\/api$/, '')}${att.url}`} target='_blank' rel='noreferrer' style={{display:'block', width:'100%'}}>
+                          <img src={`${API_BASE.replace(/\/api$/, '')}${att.url}`} alt={fileName(att.url)} style={{width:'100%', height:100, objectFit:'cover', borderRadius:4}} />
+                        </a>
+                      ) : (
+                        <a href={`${API_BASE.replace(/\/api$/, '')}${att.url}`} target='_blank' rel='noreferrer' style={{fontSize:12, wordBreak:'break-all'}}>Download {fileName(att.url)}</a>
+                      )}
+                    </div>
+                  ))}
               </div>
             ) : (
               <div style={{fontSize:12, opacity:0.6}}>No attachments</div>
@@ -448,7 +449,7 @@ function EditTradeModal({ trade, onClose, onSaved }: { trade:any; onClose:()=>vo
               <div style={{display:'grid', gap:4}}>
                 {attachments.map(att => (
                   <div key={att.id} style={{display:'flex', alignItems:'center', gap:8}}>
-                    <a href={`http://localhost:4000${att.url}`} target='_blank' rel='noreferrer' style={{fontSize:11}}>Attachment</a>
+                          <a href={`${API_BASE.replace(/\/api$/, '')}${att.url}`} target='_blank' rel='noreferrer' style={{fontSize:11}}>Attachment</a>
                     <button type='button' style={{background:'transparent', color:'var(--danger)', fontSize:10}} onClick={()=>deleteAttachment(att.id)}>✕</button>
                   </div>
                 ))}

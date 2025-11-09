@@ -37,7 +37,19 @@ if (fs.existsSync(frontendRoot)) {
 	});
 }
 
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+// Health: include DB connectivity and basic counts
+app.get('/health', async (_req, res) => {
+	try {
+		const [users, accounts, trades] = await Promise.all([
+			prisma.user.count(),
+			prisma.account.count(),
+			prisma.trade.count(),
+		]);
+		res.json({ status: 'ok', db: { users, accounts, trades } });
+	} catch (e: any) {
+		res.status(503).json({ status: 'degraded', error: e?.message || String(e) });
+	}
+});
 // Mount API under /api to avoid clashing with SPA routes
 app.use('/api/auth', authRouter);
 app.use('/api/accounts', accountRouter);
