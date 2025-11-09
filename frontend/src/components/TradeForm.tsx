@@ -7,9 +7,9 @@ import SymbolAutocomplete from './SymbolAutocomplete';
 
 export default function TradeForm() {
   const DRAFT_KEY = 'tradeDraft.v1';
-  type TradeDraft = { symbol: string; direction: 'LONG'|'SHORT'; stopPrice: string; targetPrice: string; setupMode: boolean; strategy: string; notes: string; confidence: number; tags: string; fills: Array<{ type:'ENTRY'|'EXIT'; size:string; price:string; time:string }> };
+  type TradeDraft = { symbol: string; direction: 'LONG'|'SHORT'; stopPrice: string; targetPrice: string; strategy: string; notes: string; confidence: number; tags: string; fills: Array<{ type:'ENTRY'|'EXIT'; size:string; price:string; time:string }> };
   const [form, setForm] = useState<TradeDraft>(() => {
-    const base: TradeDraft = { symbol: '', direction: 'LONG', stopPrice: '', targetPrice: '', setupMode: false, strategy: '', notes: '', confidence: 50, tags: '', fills: [] };
+    const base: TradeDraft = { symbol: '', direction: 'LONG', stopPrice: '', targetPrice: '', strategy: '', notes: '', confidence: 50, tags: '', fills: [] };
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (raw) {
@@ -29,10 +29,6 @@ export default function TradeForm() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [strategies, setStrategies] = useState<any[]>([]);
   const [strategyId, setStrategyId] = useState<string|undefined>(undefined);
-  const [playbooks, setPlaybooks] = useState<any[]>([]);
-  const [selectedPlaybookId, setSelectedPlaybookId] = useState<string>('');
-  const [setups, setSetups] = useState<any[]>([]);
-  const [setupId, setSetupId] = useState<string>('');
   const [loadingAccount, setLoadingAccount] = useState(false);
   const saveTimer = useRef<number | null>(null);
   // Load default account automatically with precedence:
@@ -46,11 +42,10 @@ export default function TradeForm() {
       setLoadingAccount(true);
       try {
         // Fetch accounts, settings (favorite), and strategies
-        const [acctRes, settingsRes, stratRes, pbRes] = await Promise.all([
+        const [acctRes, settingsRes, stratRes] = await Promise.all([
           api.get('/accounts'),
           api.get('/settings').catch(()=>({ data: {} })),
-          api.get('/strategies').catch(()=>({ data: [] })),
-          api.get('/playbooks').catch(()=>({ data: [] })),
+          api.get('/strategies').catch(()=>({ data: [] }))
         ]);
         if (!mounted) return;
         setAccounts(acctRes.data || []);
@@ -62,7 +57,6 @@ export default function TradeForm() {
         if (exists(last)) setAccountId(last as string);
         else if (exists(fav)) setAccountId(fav as string);
         else if (list.length > 0) setAccountId(list[0].id);
-        setPlaybooks(pbRes.data || []);
       } catch (e) {
         // silently ignore for now (could surface a banner later)
       } finally {
@@ -111,11 +105,9 @@ export default function TradeForm() {
       accountId,
       symbol: form.symbol,
     strategyId: strategyId || undefined,
-      setupId: setupId || undefined,
       direction: form.direction,
       stopPrice: form.stopPrice ? Number(form.stopPrice) : undefined,
       targetPrice: form.targetPrice ? Number(form.targetPrice) : undefined,
-      setupMode: form.setupMode,
       strategy: form.strategy || undefined,
       notes: form.notes || undefined,
       confidence: form.confidence,
@@ -156,7 +148,7 @@ export default function TradeForm() {
     } catch {}
     // Clear draft
     const now = dayjs().format('YYYY-MM-DDTHH:mm');
-  const cleared: TradeDraft = { symbol: '', direction: form.direction, stopPrice: '', targetPrice: '', setupMode: form.setupMode, strategy: '', notes: '', confidence: form.confidence, tags: '', fills: [] };
+  const cleared: TradeDraft = { symbol: '', direction: form.direction, stopPrice: '', targetPrice: '', strategy: '', notes: '', confidence: form.confidence, tags: '', fills: [] };
     setForm(cleared);
     setAttachFiles([]);
     persist(cleared);
@@ -189,20 +181,6 @@ export default function TradeForm() {
           {strategies.map((s:any)=> <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
       </label>
-      <label className='form-field'>
-        <span>Playbook</span>
-        <select value={selectedPlaybookId} onChange={async e=> { const id = e.target.value; setSelectedPlaybookId(id); setSetupId(''); try { if (id) { const r = await api.get(`/playbooks/${id}`); setSetups(r.data?.setups || []); } else { setSetups([]); } } catch { setSetups([]); } }}>
-          <option value=''>None</option>
-          {playbooks.map((p:any)=> <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-      </label>
-      <label className='form-field'>
-        <span>Setup</span>
-        <select value={setupId} onChange={e=> setSetupId(e.target.value)} disabled={!selectedPlaybookId}>
-          <option value=''>None</option>
-          {setups.map((s:any)=> <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </label>
       {/* Row 3: Notes full width */}
       <textarea placeholder='Notes' value={form.notes} onChange={e => update('notes', e.target.value)} rows={3} className='span-2' />
       {/* Row 4: Direction full width, then Stop/Target */}
@@ -229,9 +207,7 @@ export default function TradeForm() {
         <input type='range' min={0} max={100} value={form.confidence} onChange={e => update('confidence', Number(e.target.value))} />
       </label>
   <input placeholder='Tags (comma separated)' value={form.tags} onChange={e => update('tags', e.target.value)} />
-      <label className='form-field checkbox-inline'>
-        <input type='checkbox' checked={form.setupMode} onChange={e => update('setupMode', e.target.checked)} /> Setup Mode
-      </label>
+      {/* Setup Mode removed */}
       {/* Asset class selection removed; backend derives from Yahoo */}
       {metrics && (
         <div className='metrics-row span-2'>
@@ -241,7 +217,7 @@ export default function TradeForm() {
         </div>
       )}
       <div className='actions span-2'>
-        <button type='button' onClick={() => { const cleared: TradeDraft = { symbol: '', direction: form.direction, stopPrice: '', targetPrice: '', setupMode: form.setupMode, strategy: '', notes: '', confidence: form.confidence, tags: '', fills: [] }; setForm(cleared); persist(cleared as any); setMetrics(null); }}>Clear Draft</button>
+  <button type='button' onClick={() => { const cleared: TradeDraft = { symbol: '', direction: form.direction, stopPrice: '', targetPrice: '', strategy: '', notes: '', confidence: form.confidence, tags: '', fills: [] }; setForm(cleared); persist(cleared as any); setMetrics(null); }}>Clear Draft</button>
         <button type='submit'>Create Trade</button>
       </div>
     </form>

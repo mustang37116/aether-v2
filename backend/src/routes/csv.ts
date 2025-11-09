@@ -49,11 +49,10 @@ router.get('/trades', async (req: AuthRequest, res) => {
 			pnl: pnl ?? '',
 			notes: t.notes || '',
 			confidence: t.confidence ?? '',
-			setupMode: t.setupMode ? 'true' : 'false',
 			tags,
 		};
 	});
-	const headers = ['id','symbol','assetClass','strategy','account','accountCurrency','size','entryPrice','exitPrice','entryTime','exitTime','stopPrice','targetPrice','fees','pnl','notes','confidence','setupMode','tags'];
+	const headers = ['id','symbol','assetClass','strategy','account','accountCurrency','size','entryPrice','exitPrice','entryTime','exitTime','stopPrice','targetPrice','fees','pnl','notes','confidence','tags'];
 	const csv = toCsv(rows, headers);
 	res.setHeader('Content-Type', 'text/csv');
 	res.setHeader('Content-Disposition', 'attachment; filename="trades.csv"');
@@ -148,8 +147,7 @@ router.post('/trades/import', upload.single('file'), async (req: AuthRequest, re
 				targetPrice: r.targetPrice ? Number(r.targetPrice) : null,
 				strategy: r.strategy || null,
 				notes: r.notes || null,
-				confidence: r.confidence ? Number(r.confidence) : null,
-				setupMode: r.setupMode === 'true' || r.setupMode === '1'
+				confidence: r.confidence ? Number(r.confidence) : null
 			};
 			if (id) {
 				await (prisma as any).trade.upsert({ where: { id }, update: data, create: { id, ...data } });
@@ -245,7 +243,7 @@ router.get('/backup', async (req: AuthRequest, res) => {
 	]);
 	const zip = new JSZip();
 	zip.file('accounts.csv', toCsv(accounts, ['id','name','currency','defaultFeePerMiniContract','defaultFeePerMicroContract','createdAt','updatedAt']));
-	zip.file('trades.csv', toCsv(trades, ['id','accountId','symbol','assetClass','size','entryPrice','entryTime','exitPrice','exitTime','fees','stopPrice','targetPrice','strategy','notes','confidence','setupMode','createdAt','updatedAt']));
+	zip.file('trades.csv', toCsv(trades, ['id','accountId','symbol','assetClass','size','entryPrice','entryTime','exitPrice','exitTime','fees','stopPrice','targetPrice','strategy','notes','confidence','createdAt','updatedAt']));
 	zip.file('transactions.csv', toCsv(transactions, ['id','accountId','type','amount','currency','createdAt','updatedAt']));
 	zip.file('tags.csv', toCsv(tags, ['id','name','createdAt','updatedAt']));
 	zip.file('settings.csv', toCsv(settings, ['id','userId','favoriteAccountId','defaultChartInterval','defaultChartWindowDays','createdAt','updatedAt']));

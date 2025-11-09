@@ -8,7 +8,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get('/summary', async (req: AuthRequest, res) => {
-  const trades = await prisma.trade.findMany({ where: { userId: req.userId, setupMode: false } });
+  const trades = await prisma.trade.findMany({ where: { userId: req.userId } });
   const total = trades.length;
   const wins = trades.filter(t => t.exitPrice && t.exitPrice > t.entryPrice).length; // naive win def
   const winRate = total ? wins / total : 0;
@@ -23,7 +23,7 @@ async function grouped(req: AuthRequest, groupBy: 'tag' | 'strategy' | 'assetCla
   const timeFilter: any = {};
   if (start) timeFilter.gte = new Date(start);
   if (end) timeFilter.lte = new Date(end);
-  const where: any = { userId: req.userId, setupMode: false };
+  const where: any = { userId: req.userId };
   if (accountId) where.accountId = accountId;
   if (Object.keys(timeFilter).length) where.entryTime = timeFilter; // using entry as baseline; could extend to exitTime
   const trades = await prisma.trade.findMany({ where, include: { tradeTags: { include: { tag: true } }, account: true } });
@@ -75,7 +75,7 @@ router.get('/byTag', async (req: AuthRequest, res) => {
 // Equity curve combining transactions and realized trade PnL, optionally filtered by account
 router.get('/equity', async (req: AuthRequest, res) => {
   const { accountId } = req.query as { accountId?: string };
-  const tradeWhere: any = { userId: req.userId, setupMode: false };
+  const tradeWhere: any = { userId: req.userId };
   const txWhere: any = { account: { userId: req.userId } };
   if (accountId) {
     tradeWhere.accountId = accountId;
@@ -111,7 +111,7 @@ router.get('/equity', async (req: AuthRequest, res) => {
 // Calendar heatmap of daily PnL (realized PnL + deposits/withdrawals as separate line item)
 router.get('/calendar', async (req: AuthRequest, res) => {
   const { accountId } = req.query as { accountId?: string };
-  const tradeWhere: any = { userId: req.userId, setupMode: false };
+  const tradeWhere: any = { userId: req.userId };
   const txWhere: any = { account: { userId: req.userId } };
   if (accountId) {
     tradeWhere.accountId = accountId;

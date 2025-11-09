@@ -48,7 +48,7 @@ router.delete('/:id', async (req, res) => {
     await prisma.strategy.delete({ where: { id } });
     res.json({ ok: true });
 });
-// Checklist item CRUD removed (playbook deprecated)
+// Checklist routes were removed; strategies remain the only organizational unit
 // Strategy tags CRUD (separate from trade tags)
 router.post('/:id/tags', async (req, res) => {
     const { id } = req.params;

@@ -51,7 +51,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
   res.json({ ok: true });
 });
 
-// Checklist item CRUD removed (playbook deprecated)
+// Checklist routes were removed; strategies remain the only organizational unit
 
 // Strategy tags CRUD (separate from trade tags)
 router.post('/:id/tags', async (req: AuthRequest, res: Response) => {

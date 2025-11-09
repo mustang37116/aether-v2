@@ -276,7 +276,7 @@ router.put('/:id/exit', async (req: AuthRequest, res: Response) => {
 });
 
 router.post('/', async (req: AuthRequest, res: Response) => {
-  const { accountId, symbol, assetClass, direction, size, entryPrice, entryTime, stopPrice, targetPrice, setupMode, strategy, strategyId, notes, confidence, tags, exitPrice, exitTime, fills, fees } = (req as any).body;
+  const { accountId, symbol, assetClass, direction, size, entryPrice, entryTime, stopPrice, targetPrice, strategy, strategyId, notes, confidence, tags, exitPrice, exitTime, fills, fees } = (req as any).body;
   // Derive assetClass if not provided
   const derived = await resolveAssetClassAndSymbol(symbol);
   const finalAssetClass = assetClass || derived.assetClass;
@@ -291,7 +291,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     if (!baseEntryPrice) baseEntryPrice = firstEntry.price;
     if (!baseEntryTime) baseEntryTime = firstEntry.time || new Date().toISOString();
   }
-  const trade = await prisma.trade.create({ data: { accountId, userId: req.userId!, symbol, assetClass: finalAssetClass as any, direction: direction || null, size: baseSize, entryPrice: baseEntryPrice, entryTime: new Date(baseEntryTime), stopPrice, targetPrice, setupMode: !!setupMode, strategy: strategy || null, strategyId: strategyId || null, notes: notes || null, confidence: typeof confidence === 'number' ? confidence : null, exitPrice: exitPrice ?? null, exitTime: exitTime ? new Date(exitTime) : null, fees: fees != null ? Number(fees) : null } as any });
+  const trade = await prisma.trade.create({ data: { accountId, userId: req.userId!, symbol, assetClass: finalAssetClass as any, direction: direction || null, size: baseSize, entryPrice: baseEntryPrice, entryTime: new Date(baseEntryTime), stopPrice, targetPrice, strategy: strategy || null, strategyId: strategyId || null, notes: notes || null, confidence: typeof confidence === 'number' ? confidence : null, exitPrice: exitPrice ?? null, exitTime: exitTime ? new Date(exitTime) : null, fees: fees != null ? Number(fees) : null } as any });
   // Handle tags: list of tag names
   if (Array.isArray(tags) && tags.length) {
     for (const name of tags) {
@@ -358,7 +358,6 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
   strategyId,
     notes,
     confidence,
-    setupMode,
   } = (req as any).body;
   const existing = await prisma.trade.findFirst({ where: { id, userId: req.userId } });
   if (!existing) return res.status(404).json({ error: 'trade not found' });
@@ -383,7 +382,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
   if (strategyId !== undefined) data.strategyId = strategyId === null ? null : strategyId;
   if (notes !== undefined) data.notes = notes;
   if (typeof confidence === 'number') data.confidence = confidence;
-  if (typeof setupMode === 'boolean') data.setupMode = setupMode;
+  // setupMode removed
 
   const updated = await prisma.trade.update({ where: { id }, data });
   // If fees not explicitly set, but symbol/size/exit changed, recompute fees from fills

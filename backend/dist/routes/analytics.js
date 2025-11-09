@@ -5,7 +5,7 @@ import { convertAmount } from '../utils/fx.js';
 const router = Router();
 router.use(requireAuth);
 router.get('/summary', async (req, res) => {
-    const trades = await prisma.trade.findMany({ where: { userId: req.userId, setupMode: false } });
+    const trades = await prisma.trade.findMany({ where: { userId: req.userId } });
     const total = trades.length;
     const wins = trades.filter(t => t.exitPrice && t.exitPrice > t.entryPrice).length; // naive win def
     const winRate = total ? wins / total : 0;
@@ -21,7 +21,7 @@ async function grouped(req, groupBy) {
         timeFilter.gte = new Date(start);
     if (end)
         timeFilter.lte = new Date(end);
-    const where = { userId: req.userId, setupMode: false };
+    const where = { userId: req.userId };
     if (accountId)
         where.accountId = accountId;
     if (Object.keys(timeFilter).length)
@@ -79,7 +79,7 @@ router.get('/byTag', async (req, res) => {
 // Equity curve combining transactions and realized trade PnL, optionally filtered by account
 router.get('/equity', async (req, res) => {
     const { accountId } = req.query;
-    const tradeWhere = { userId: req.userId, setupMode: false };
+    const tradeWhere = { userId: req.userId };
     const txWhere = { account: { userId: req.userId } };
     if (accountId) {
         tradeWhere.accountId = accountId;
@@ -111,7 +111,7 @@ router.get('/equity', async (req, res) => {
 // Calendar heatmap of daily PnL (realized PnL + deposits/withdrawals as separate line item)
 router.get('/calendar', async (req, res) => {
     const { accountId } = req.query;
-    const tradeWhere = { userId: req.userId, setupMode: false };
+    const tradeWhere = { userId: req.userId };
     const txWhere = { account: { userId: req.userId } };
     if (accountId) {
         tradeWhere.accountId = accountId;

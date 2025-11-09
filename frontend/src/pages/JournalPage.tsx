@@ -251,7 +251,6 @@ function EditTradeModal({ trade, onClose, onSaved }: { trade:any; onClose:()=>vo
     strategy: trade.strategy || '',
     notes: trade.notes || '',
     confidence: trade.confidence ?? 50,
-    setupMode: !!trade.setupMode,
     stopPrice: trade.stopPrice != null ? String(trade.stopPrice) : '',
     targetPrice: trade.targetPrice != null ? String(trade.targetPrice) : '',
     symbol: trade.symbol,
@@ -307,7 +306,6 @@ function EditTradeModal({ trade, onClose, onSaved }: { trade:any; onClose:()=>vo
     strategyId: strategyId || null,
     notes: form.notes,
     confidence: Number(form.confidence),
-    setupMode: form.setupMode,
     stopPrice: form.stopPrice ? Number(form.stopPrice) : null,
     targetPrice: form.targetPrice ? Number(form.targetPrice) : null,
   };
@@ -416,10 +414,7 @@ function EditTradeModal({ trade, onClose, onSaved }: { trade:any; onClose:()=>vo
             <input placeholder='Stop Price' value={form.stopPrice} onChange={e=>update('stopPrice', e.target.value)} />
             <input placeholder='Target Price' value={form.targetPrice} onChange={e=>update('targetPrice', e.target.value)} />
             <div className='helper-text'>R preview: {rPreview ?? '-'}</div>
-            {/* Setup Mode */}
-            <label className='form-field checkbox-inline span-2'>
-              <input type='checkbox' checked={form.setupMode} onChange={e=>update('setupMode', e.target.checked)} /> Setup Mode
-            </label>
+            {/* Setup Mode removed */}
             {/* Tags */}
             <div className='span-2'>
               <TagEditorInline tradeId={trade.id} initialTags={trade.tags || []} onChange={onSaved} />

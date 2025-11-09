@@ -65,7 +65,6 @@ export default function TradesListPage() {
             <th>R</th>
             <th>Hold</th>
             <th>Size</th>
-            <th>Setup?</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -85,7 +84,6 @@ export default function TradesListPage() {
                 <td>{R != null ? R.toFixed(2) : '-'}</td>
                 <td>{hold}</td>
                 <td>{t.size}</td>
-                <td>{t.setupMode ? 'Yes' : ''}</td>
                 <td style={{display:'grid', gap:6}}>
                   {!t.exitPrice && <button disabled={finalizing===t.id} onClick={()=>finalize(t.id)}>Finalize</button>}
                   <TagEditor trade={t} api={api} onChange={load} />
