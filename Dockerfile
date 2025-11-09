@@ -1,4 +1,3 @@
-# Root-level Dockerfile that builds and runs the backend in production mode
 FROM node:20 AS build
 WORKDIR /app
 
