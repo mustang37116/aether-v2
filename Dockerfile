@@ -10,6 +10,9 @@ RUN npm ci && npx prisma generate
 COPY backend/src ./src
 RUN npm run build
 
+# Prepare production node_modules with generated Prisma client
+RUN npm prune --omit=dev
+
 # --- Runtime image ---
 FROM node:20-slim
 WORKDIR /app/backend
@@ -20,9 +23,9 @@ RUN apt-get update -y \
 	&& apt-get install -y --no-install-recommends openssl ca-certificates \
 	&& rm -rf /var/lib/apt/lists/*
 
-# Install only production deps
+# Use production dependencies from build stage (includes generated Prisma client)
+COPY --from=build /app/backend/node_modules ./node_modules
 COPY --from=build /app/backend/package*.json ./
-RUN npm ci --omit=dev
 
 # Copy compiled app and prisma schema
 COPY --from=build /app/backend/dist ./dist
