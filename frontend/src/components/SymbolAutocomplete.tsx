@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 
 export interface SymbolAutocompleteProps { value: string; onChange(v:string): void; placeholder?: string; className?: string; }
 export default function SymbolAutocomplete({ value, onChange, placeholder='Symbol', className }: SymbolAutocompleteProps){
-  // Dynamic API base (mirrors useApi logic): prefer explicit env, else same-origin + /api, else localhost dev fallback
+  // Dynamic API base (mirrors useApi logic) for Koyeb: prefer explicit env, else same-origin + /api
   const explicit = (import.meta as any).env?.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE_URL;
   const sameOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
-  const apiBase = explicit || (sameOrigin ? sameOrigin + '/api' : 'http://localhost:4000/api');
+  const apiBase = explicit ? explicit.replace(/\/$/, '') : (sameOrigin ? sameOrigin.replace(/\/$/, '') + '/api' : '/api');
   const rootRef = useRef<HTMLDivElement|null>(null);
   const inputRef = useRef<HTMLInputElement|null>(null);
   const [open, setOpen] = useState(false);

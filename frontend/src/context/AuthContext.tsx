@@ -1,11 +1,10 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
-// Determine API root similarly to useApi hook for consistency
+// Mirror logic from useApi for consistent base resolution (no localhost fallback).
 const explicit = (import.meta as any).env?.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE_URL;
 const sameOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
-// If backend serves API under /api on same origin, relative /api is cleaner.
-const API_ROOT = explicit || (sameOrigin ? sameOrigin + '/api' : 'http://localhost:4000/api');
+const API_ROOT = explicit ? explicit.replace(/\/$/, '') : (sameOrigin ? sameOrigin.replace(/\/$/, '') + '/api' : '/api');
 
 interface AuthCtx {
   token: string | null;

@@ -2,13 +2,13 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useMemo } from 'react';
 
-// Resolve API base URL:
-// 1. Explicit env var VITE_API_BASE_URL
-// 2. Same-origin (single-service deployment) window.location.origin
-// 3. Dev fallback localhost
+// API base resolution for Koyeb/Supabase deployment (no localhost fallbacks):
+// Priority:
+// 1) VITE_API_BASE_URL (recommended; set to your Koyeb API URL)
+// 2) Same-origin '/api' (when reverse-proxied on the same domain)
 const explicit = (import.meta as any).env?.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE_URL;
 const sameOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
-const baseURL = explicit || (sameOrigin ? sameOrigin + '/api' : 'http://localhost:4000/api');
+const baseURL = (explicit ? explicit.replace(/\/$/, '') : (sameOrigin ? sameOrigin.replace(/\/$/, '') + '/api' : '/api'));
 
 export function useApi() {
   const { token } = useAuth();
