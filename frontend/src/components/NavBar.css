@@ -1,8 +1,8 @@
 .nav-bar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem;
   background: rgba(20,20,24,0.55);
   color: #e5e5e5;
   position: sticky;
@@ -14,8 +14,7 @@
   box-shadow: 0 4px 18px -4px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.04);
   border-radius: 14px;
   margin: 0.5rem 0.5rem 0.75rem;
-  overflow-x: auto; /* prevent cutoff of right-side create button */
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden; /* keep right-side actions pinned, left group scrolls */
 }
 .nav-brand {
   font-size: 0.95rem;
@@ -40,6 +39,15 @@
   flex: 0 0 auto;
   min-width: max-content; /* ensure content doesn't shrink and can scroll */
 }
+.nav-group-left {
+  flex: 1 1 auto;
+  min-width: 0; /* allow shrinking in small viewports */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.nav-group-right {
+  flex: 0 0 auto;
+}
 .nav-spacer { flex: 1; }
 .nav-icon-link, .nav-icon-button {
   display: flex;
@@ -48,8 +56,8 @@
   justify-content: center;
   text-decoration: none;
   color: inherit;
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border-radius: 8px;
   font-size: 0.55rem;
   gap: 2px;
@@ -69,7 +77,7 @@
 /* Show text labels only on larger screens to save width */
 @media (min-width: 900px) {
   .nav-icon-label { display: block; }
-  .nav-icon-link, .nav-icon-button { width: 56px; }
+  .nav-icon-link, .nav-icon-button { width: 56px; height: 56px; }
 }
 .nav-icon-button.primary {
   background: linear-gradient(135deg,#2563eb,#3b82f6);
@@ -78,12 +86,16 @@
 }
 .nav-icon-button.primary:hover { background: linear-gradient(135deg,#1d4ed8,#2563eb); }
 .nav-icon-button.primary:active { background: linear-gradient(135deg,#1e40af,#1d4ed8); }
-@media (max-width: 480px) {
-  .nav-bar { justify-content: space-between; }
+@media (max-width: 600px) {
+  .nav-bar { gap: 0.25rem; }
   .nav-group-left { gap: 0.25rem; }
+  .nav-spacer { display: none; }
+  /* ensure create button stays visible */
+  .nav-group-right { margin-left: 0.25rem; }
 }
 
 /* Optional: subtle thin scrollbar for horizontal overflow */
-.nav-bar::-webkit-scrollbar { height: 6px; }
-.nav-bar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
-.nav-bar::-webkit-scrollbar-track { background: transparent; }
+/* Thin scrollbar only on left group when it overflows */
+.nav-group-left::-webkit-scrollbar { height: 6px; }
+.nav-group-left::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+.nav-group-left::-webkit-scrollbar-track { background: transparent; }
