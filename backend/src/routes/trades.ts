@@ -200,9 +200,9 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         metrics = calcRiskRewardR(Number(t.entryPrice), Number(t.stopPrice), Number(t.targetPrice), Number(t.size), t.direction || 'LONG');
       }
     }
-    // Include strategy metadata if present
-    const strategy = (t as any).strategyRef ? { id: (t as any).strategyRef.id, name: (t as any).strategyRef.name } : null;
-    return { ...t, metrics, holdTimeSeconds, pnl, tags, attachments, strategy };
+    // Include strategy metadata if present without overwriting legacy string field
+    const strategyMeta = (t as any).strategyRef ? { id: (t as any).strategyRef.id, name: (t as any).strategyRef.name } : null;
+    return { ...t, metrics, holdTimeSeconds, pnl, tags, attachments, strategyMeta };
   });
   res.json(enriched);
 });

@@ -43,7 +43,7 @@ export default function RecentTrades({ accountId, start, end, limit=10 }: { acco
             <div style={{display:'flex', gap:12, fontSize:12}}>
               <span>R: {t.metrics?.R != null ? t.metrics.R.toFixed(2) : '-'}</span>
               <span>PnL: {t.pnl != null ? t.pnl.toFixed(2) : '-'}</span>
-              <span>Strategy: {t.strategy || '-'}</span>
+              <span>Strategy: {typeof t.strategy === 'object' && t.strategy !== null ? (t.strategy.name || '-') : (t.strategyMeta?.name || t.strategy || '-')}</span>
             </div>
             {t.notes && <div style={{fontSize:12, opacity:0.9, marginTop:4, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden'}}>{t.notes}</div>}
             {t.tags?.length ? (
@@ -83,7 +83,7 @@ function TradeDetail({ trade, onClose }: { trade:any; onClose:()=>void }){
             <Info label='PnL' value={trade.pnl != null ? trade.pnl.toFixed(2) : '-'} />
             <Info label='Hold' value={trade.holdTimeSeconds ? formatHold(trade.holdTimeSeconds) : '-'} />
           </div>
-          <Info label='Strategy' value={trade.strategy || '-'} />
+          <Info label='Strategy' value={typeof trade.strategy === 'object' && trade.strategy !== null ? (trade.strategy.name || '-') : (trade.strategyMeta?.name || trade.strategy || '-')} />
           {trade.tags?.length ? (<div>
             <div style={{fontSize:12, opacity:0.7, marginBottom:4}}>Tags</div>
             <div style={{display:'flex', gap:6, flexWrap:'wrap'}}> {trade.tags.map((tg:any)=> <span key={tg.id} className='tag-chip'>{tg.name}</span>)} </div>

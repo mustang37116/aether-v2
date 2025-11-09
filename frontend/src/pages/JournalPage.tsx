@@ -123,7 +123,7 @@ function JournalCard({ trade, onView, onEdit }: { trade:any; onView:()=>void; on
       </div>
 
       <div>
-        <div style={{fontSize:12}}>Strategy: {trade.strategy || '-'}</div>
+  <div style={{fontSize:12}}>Strategy: {typeof trade.strategy === 'object' && trade.strategy !== null ? (trade.strategy.name || '-') : (trade.strategyMeta?.name || trade.strategy || '-')}</div>
         {trade.notes && <div style={{fontSize:12, opacity:0.9, display:'-webkit-box', WebkitLineClamp:3, WebkitBoxOrient:'vertical', overflow:'hidden'}}>{trade.notes}</div>}
         {trade.tags?.length ? (
           <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
@@ -209,7 +209,7 @@ function JournalDetail({ trade, onClose }: { trade:any; onClose:()=>void }){
             <Metric label='Hold' value={trade.holdTimeSeconds ? formatHold(trade.holdTimeSeconds) : '-'} />
             <Metric label='Fees' value={trade.fees != null ? Number(trade.fees).toFixed(2) : '0.00'} />
           </div>
-          <Metric label='Strategy' value={trade.strategy || '-'} />
+          <Metric label='Strategy' value={typeof trade.strategy === 'object' && trade.strategy !== null ? (trade.strategy.name || '-') : (trade.strategyMeta?.name || trade.strategy || '-')} />
           {trade.tags?.length ? (
             <div>
               <div style={{fontSize:12, opacity:0.7, marginBottom:4}}>Tags</div>
