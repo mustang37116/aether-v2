@@ -5,6 +5,7 @@ import { useApi } from '../hooks/useApi';
 type AssetClass = 'STOCK' | 'OPTION' | 'FUTURE' | 'FOREX' | 'CRYPTO';
 
 interface FeeRow { assetClass: AssetClass; mode: 'PER_CONTRACT_DOLLAR' | 'PER_CONTRACT_PERCENT'; value: number; }
+interface TickerFee { id?: string; symbol: string; mode: 'PER_CONTRACT_DOLLAR' | 'PER_CONTRACT_PERCENT'; value: number; }
 
 interface Transaction { id: string; createdAt: string; type: 'DEPOSIT'|'WITHDRAWAL'; amount: number; currency: string; }
 
@@ -17,6 +18,8 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
   const [microFee, setMicroFee] = useState<string>('');
   const [account, setAccount] = useState<any>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [tickerFees, setTickerFees] = useState<TickerFee[]>([]);
+  const [symbols, setSymbols] = useState<string[]>([]);
   const [txType, setTxType] = useState<'DEPOSIT'|'WITHDRAWAL'>('DEPOSIT');
   const [txAmount, setTxAmount] = useState<string>('');
   const [txCreatedAt, setTxCreatedAt] = useState<string>(() => {
@@ -39,8 +42,16 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
       setLoading(true);
       try {
   const acct = await api.get(`/accounts/${accountId}`).then(r=>r.data);
-        const r = await api.get(`/accounts/${accountId}/fees`).then(r => r.data);
+  const r = await api.get(`/accounts/${accountId}/fees`).then(r => r.data);
         const existing: any[] = r.fees || [];
+        // Load per-ticker overrides and symbol universe
+        try {
+          const tfRes = await api.get(`/accounts/${accountId}/ticker-fees`).then(r=>r.data);
+          if (mounted) {
+            setSymbols(tfRes.symbols || []);
+            setTickerFees((tfRes.overrides || []).map((o:any)=>({ id:o.id, symbol:o.symbol, mode:o.mode, value:Number(o.value) })));
+          }
+        } catch {/* ignore */}
         const map: Record<string, any> = {};
         existing.forEach(e => { map[e.assetClass] = e; });
         const merged = assetClasses.map(ac => ({
@@ -79,8 +90,23 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
         defaultFeePerMiniContract: miniFee !== '' ? Number(miniFee) : null,
         defaultFeePerMicroContract: microFee !== '' ? Number(microFee) : null,
       });
+      // Save ticker fee overrides
+      await api.put(`/accounts/${accountId}/ticker-fees`, { fees: tickerFees.map(tf=>({ symbol: tf.symbol, mode: tf.mode, value: tf.value })) });
+      const tfRes = await api.get(`/accounts/${accountId}/ticker-fees`).then(r=>r.data);
+      setTickerFees((tfRes.overrides || []).map((o:any)=>({ id:o.id, symbol:o.symbol, mode:o.mode, value:Number(o.value) })));
     } catch (e: any) { setError(e.message || 'save failed'); }
     finally { setSaving(false); }
+  };
+  const addTickerFee = () => {
+    const sym = prompt('Enter symbol (exact):');
+    if (!sym) return;
+    if (tickerFees.find(t=>t.symbol===sym)) return alert('Already exists');
+    setTickerFees(t=>[...t,{ symbol:sym, mode:'PER_CONTRACT_DOLLAR', value:0 }]);
+    if (!symbols.includes(sym)) setSymbols(s=>[...s,sym]);
+  };
+  const removeTickerFee = (sym:string) => {
+    if (!confirm('Remove override for '+sym+'?')) return;
+    setTickerFees(t=>t.filter(x=>x.symbol!==sym));
   };
 
   const submitTx = async () => {
@@ -236,6 +262,46 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
       <button disabled={saving} onClick={save}>{saving ? 'Saving...' : 'Save Fees'}</button>
     </div>
     <p style={{ fontSize: 12, color: '#666' }}>Percent mode applies value% of notional (entryPrice * size). Dollar mode applies flat value per contract/share. Futures mini/micro explicit defaults may override if set in trade form logic.</p>
+
+    <h3 style={{margin:'24px 0 8px'}}>Per-Ticker Overrides</h3>
+    <p style={{fontSize:12, color:'#666', marginTop:0}}>Overrides take precedence over mini/micro defaults and asset-class matrix. Leave a row at 0 to effectively disable it (or remove).</p>
+    <div style={{marginBottom:8}}>
+      <button type='button' onClick={addTickerFee}>Add Symbol Override</button>
+    </div>
+    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom:12 }}>
+      <thead>
+        <tr>
+          <th style={{textAlign:'left'}}>Symbol</th>
+          <th style={{textAlign:'left'}}>Mode</th>
+          <th style={{textAlign:'left'}}>Value</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {tickerFees.map(tf => (
+          <tr key={tf.symbol}>
+            <td>{tf.symbol}</td>
+            <td>
+              <select value={tf.mode} onChange={e=>setTickerFees(list=>list.map(x=>x.symbol===tf.symbol?{...x, mode:e.target.value as any}:x))}>
+                <option value='PER_CONTRACT_DOLLAR'>Dollar / contract</option>
+                <option value='PER_CONTRACT_PERCENT'>Percent notional</option>
+              </select>
+            </td>
+            <td><input type='number' step={tf.mode==='PER_CONTRACT_PERCENT'?0.0001:0.01} value={tf.value} onChange={e=>setTickerFees(list=>list.map(x=>x.symbol===tf.symbol?{...x, value: Number(e.target.value)||0}:x))} /></td>
+            <td><button style={{fontSize:12}} onClick={()=>removeTickerFee(tf.symbol)}>✕</button></td>
+          </tr>
+        ))}
+        {!tickerFees.length && <tr><td colSpan={4}><i>No overrides</i></td></tr>}
+      </tbody>
+    </table>
+    {symbols.length > 0 && (
+      <details style={{marginBottom:16}}>
+        <summary style={{cursor:'pointer'}}>Discovered Symbols ({symbols.length})</summary>
+        <div style={{fontSize:12, display:'flex', flexWrap:'wrap', gap:6, marginTop:6}}>
+          {symbols.map(s => <span key={s} style={{padding:'2px 6px', border:'1px solid #333', borderRadius:4}}>{s}</span>)}
+        </div>
+      </details>
+    )}
 
     <h3 style={{margin:'24px 0 8px'}}>Transactions</h3>
     {txMsg && <div style={{marginBottom:8, color: txMsg==='Saved' ? '#9ae6b4' : '#f56565'}}>{txMsg}</div>}

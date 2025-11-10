@@ -78,6 +78,46 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
   res.json(account);
 });
 
+// List per-symbol ticker fee overrides plus discovered symbols
+router.get('/:id/ticker-fees', async (req: AuthRequest, res: Response) => {
+  const { id } = req.params as any;
+  const account = await prisma.account.findFirst({ where: { id, userId: req.userId } });
+  if (!account) return res.status(404).json({ error: 'Not found' });
+  const overrides = await (prisma as any).tickerFee.findMany({ where: { accountId: id } });
+  // Discover unique symbols from trades for convenience
+  const symbols = await prisma.trade.findMany({ where: { accountId: id }, select: { symbol: true }, distinct: ['symbol'] });
+  res.json({ overrides, symbols: symbols.map(s => s.symbol) });
+});
+
+// Bulk upsert/delete ticker fee overrides
+router.put('/:id/ticker-fees', async (req: AuthRequest, res: Response) => {
+  const { id } = req.params as any;
+  const account = await prisma.account.findFirst({ where: { id, userId: req.userId } });
+  if (!account) return res.status(404).json({ error: 'Not found' });
+  const { fees } = req.body as { fees: { symbol: string; mode: 'PER_CONTRACT_DOLLAR' | 'PER_CONTRACT_PERCENT'; value: number | null }[] };
+  if (!Array.isArray(fees)) return res.status(400).json({ error: 'fees array required' });
+  const results: any[] = [];
+  for (const f of fees) {
+    if (!f.symbol) continue;
+    if (f.value === null || f.value === undefined || isNaN(f.value)) {
+      // delete override
+      await (prisma as any).tickerFee.deleteMany({ where: { accountId: id, symbol: f.symbol } });
+      results.push({ symbol: f.symbol, deleted: true });
+      continue;
+    }
+    const data = { accountId: id, symbol: f.symbol, mode: f.mode, value: f.value };
+    const existing = await (prisma as any).tickerFee.findFirst({ where: { accountId: id, symbol: f.symbol } });
+    if (existing) {
+      const updated = await (prisma as any).tickerFee.update({ where: { id: existing.id }, data: { mode: f.mode, value: f.value } });
+      results.push(updated);
+    } else {
+      const created = await (prisma as any).tickerFee.create({ data });
+      results.push(created);
+    }
+  }
+  res.json({ updated: results.length, results });
+});
+
 router.post('/', async (req: AuthRequest, res: Response) => {
   const { name, currency, defaultFeePerMiniContract, defaultFeePerMicroContract } = req.body as any;
   const data: any = { name, currency: currency || 'USD', userId: req.userId! };
