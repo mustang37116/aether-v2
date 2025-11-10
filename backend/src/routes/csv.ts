@@ -91,9 +91,13 @@ router.get('/transactions', async (req: AuthRequest, res) => {
 
 // Utility: parse CSV (simple, handles quoted commas and quotes)
 function parseCsv(text: string): { headers: string[]; rows: Record<string,string>[] } {
-	const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+	// Strip UTF-8 BOM if present to ensure first header matches (e.g., Id vs \uFEFFId)
+	let src = text;
+	if (src && src.charCodeAt(0) === 0xFEFF) src = src.slice(1);
+	const lines = src.split(/\r?\n/).filter(l=>l.trim().length);
 	if (!lines.length) return { headers: [], rows: [] };
-	const headers = lines[0].split(',');
+	const rawHeader = lines[0];
+	const headers = rawHeader.split(',').map(h => h.replace(/^\uFEFF/, '').trim());
 	const rows: Record<string,string>[] = [];
 	for (let i=1;i<lines.length;i++) {
 		const line = lines[i];
@@ -242,7 +246,7 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 		const reasons: any[] = [];
 		for (const r of rows) {
 			// Map Topstep columns
-			const topId = (r.Id || r.id || '').toString().trim();
+			const topId = (r.Id || (r as any)['\uFEFFId'] || r.id || '').toString().trim();
 			const symbol = (r.ContractName || r.symbol || '').trim();
 			const entryTime = parseTopstepDate(r.EnteredAt || r.entryTime || r.EntryTime);
 			const exitTime = parseTopstepDate(r.ExitedAt || r.exitTime || r.ExitTime);
