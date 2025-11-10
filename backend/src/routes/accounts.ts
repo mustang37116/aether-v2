@@ -110,13 +110,28 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
   const { id } = req.params as any;
   const existing = await prisma.account.findFirst({ where: { id, userId: req.userId } });
   if (!existing) return res.status(404).json({ error: 'account not found' });
-  // Delete related entities
-  await prisma.tradeTag.deleteMany({ where: { trade: { accountId: id } } });
-  await prisma.trade.deleteMany({ where: { accountId: id } });
-  await prisma.transaction.deleteMany({ where: { accountId: id } });
-  try { await (prisma as any).accountFee.deleteMany({ where: { accountId: id } }); } catch {}
-  await prisma.account.delete({ where: { id } });
-  res.json({ ok: true });
+  try {
+    await prisma.$transaction(async(tx)=> {
+      // Delete in dependency order to satisfy FK constraints
+      // 1. Trade fills & attachments
+      await tx.tradeFill.deleteMany({ where: { trade: { accountId: id } } });
+      await tx.attachment.deleteMany({ where: { trade: { accountId: id } } });
+      // 2. Trade tags
+      await tx.tradeTag.deleteMany({ where: { trade: { accountId: id } } });
+      // 3. Trades
+      await tx.trade.deleteMany({ where: { accountId: id } });
+      // 4. Transactions
+      await tx.transaction.deleteMany({ where: { accountId: id } });
+      // 5. Account fees (optional model)
+      try { await (tx as any).accountFee.deleteMany({ where: { accountId: id } }); } catch {}
+      // 6. Account
+      await tx.account.delete({ where: { id } });
+    });
+    res.json({ ok: true });
+  } catch (e:any) {
+    console.error(e);
+    res.status(500).json({ error: 'delete failed', detail: e.message });
+  }
 });
 
 // Per-asset-class fee APIs (using any-casts to avoid type lag during client regeneration)
