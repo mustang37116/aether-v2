@@ -11,12 +11,31 @@ interface AuthCtx {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  applyTheme: (theme: string | null) => void;
 }
 
 const Ctx = createContext<AuthCtx | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: any }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
+  // Apply persisted theme early (no flicker)
+  const initialTheme = typeof document !== 'undefined' ? localStorage.getItem('theme') : null;
+  if (initialTheme && typeof document !== 'undefined') {
+    document.documentElement.classList.add(`theme-${initialTheme}`);
+  }
+
+  function applyTheme(theme: string | null) {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    // Remove any existing theme-* class
+    root.className = root.className.split(/\s+/).filter(c => !c.startsWith('theme-')).join(' ').trim();
+    if (theme) {
+      root.classList.add(`theme-${theme}`);
+      localStorage.setItem('theme', theme);
+    } else {
+      localStorage.removeItem('theme');
+    }
+  }
 
   useEffect(() => {
     if (token) localStorage.setItem('token', token); else localStorage.removeItem('token');
@@ -42,7 +61,7 @@ export function AuthProvider({ children }: { children: any }) {
   }
   function logout() { setToken(null); }
 
-  return <Ctx.Provider value={{ token, register, login, logout }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ token, register, login, logout, applyTheme }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {

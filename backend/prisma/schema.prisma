@@ -30,6 +30,7 @@ model UserSettings {
   defaultTagId String?
   defaultChartInterval String? // e.g. '1d','1h','15m'
   defaultChartWindowDays Int?  // e.g. 5,15,30,90
+  theme       String? // UI theme key, e.g. 'aurora' | 'solar' | 'emerald' | 'amethyst' | 'ocean' | 'mono'
 }
 
 model Account {

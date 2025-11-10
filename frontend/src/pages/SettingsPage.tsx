@@ -3,11 +3,14 @@ import { useApi } from '../hooks/useApi';
 
 export default function SettingsPage(){
   const api = useApi();
+  // Theme options (keys must match CSS .theme-* classes)
+  const themeOptions = ['aurora','solar','emerald','amethyst','ocean','mono'];
   const [baseCurrency, setBaseCurrency] = useState('USD');
   const [accounts, setAccounts] = useState<any[]>([]);
   const [favoriteAccountId, setFavoriteAccountId] = useState<string>('');
   const [defaultChartInterval, setDefaultChartInterval] = useState<'1d'|'1h'|'15m'>('1d');
   const [defaultChartWindowDays, setDefaultChartWindowDays] = useState<number>(30);
+  const [theme, setTheme] = useState<string>('aurora');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -19,6 +22,7 @@ export default function SettingsPage(){
       setFavoriteAccountId(settings.favoriteAccountId || '');
       if (settings.defaultChartInterval) setDefaultChartInterval(settings.defaultChartInterval);
       if (settings.defaultChartWindowDays) setDefaultChartWindowDays(settings.defaultChartWindowDays);
+      if (settings.theme) { setTheme(settings.theme); }
       setAccounts(a.data);
     })();
   },[]);
@@ -30,12 +34,18 @@ export default function SettingsPage(){
         baseCurrency,
         favoriteAccountId: favoriteAccountId || null,
         defaultChartInterval,
-        defaultChartWindowDays
+        defaultChartWindowDays,
+        theme
       });
       setMsg('Saved');
     } catch {
       setMsg('Failed to save');
     } finally { setSaving(false); }
+    // Apply immediately for live preview
+    try { (await import('../context/AuthContext')); } catch {}
+    const root = document.documentElement;
+    root.className = root.className.split(/\s+/).filter(c => !c.startsWith('theme-')).join(' ').trim();
+    if (theme) root.classList.add(`theme-${theme}`);
   }
 
   return (
@@ -77,6 +87,13 @@ export default function SettingsPage(){
               <option value='30'>30d</option>
               <option value='90'>90d</option>
             </select>
+          </label>
+          <label style={{display:'grid', gap:4}}>
+            <span>Theme</span>
+            <select value={theme} onChange={e=> setTheme(e.target.value)}>
+              {themeOptions.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <span style={{fontSize:11, opacity:.55}}>Themes apply a color palette over the same glass surfaces.</span>
           </label>
         </div>
         <div>

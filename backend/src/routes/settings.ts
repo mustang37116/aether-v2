@@ -14,7 +14,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
 // Update settings (baseCurrency and optional favoriteAccountId/defaultTagId)
 router.put('/', async (req: AuthRequest, res) => {
-  const { baseCurrency, favoriteAccountId, defaultTagId, defaultChartInterval, defaultChartWindowDays } = req.body as any;
+  const { baseCurrency, favoriteAccountId, defaultTagId, defaultChartInterval, defaultChartWindowDays, theme } = req.body as any;
   if (baseCurrency) {
     await prisma.user.update({ where: { id: req.userId! }, data: { baseCurrency } });
   }
@@ -25,6 +25,7 @@ router.put('/', async (req: AuthRequest, res) => {
       defaultTagId: defaultTagId ?? undefined,
       defaultChartInterval: defaultChartInterval ?? undefined,
       defaultChartWindowDays: defaultChartWindowDays ?? undefined,
+      theme: theme ?? undefined,
     } as any),
     create: ({
       userId: req.userId!,
@@ -32,6 +33,7 @@ router.put('/', async (req: AuthRequest, res) => {
       defaultTagId: defaultTagId ?? null,
       defaultChartInterval: defaultChartInterval ?? null,
       defaultChartWindowDays: defaultChartWindowDays ?? null,
+      theme: theme ?? null,
     } as any),
   });
   res.json({ ok: true, baseCurrency: baseCurrency || (await prisma.user.findUnique({ where: { id: req.userId! } }))?.baseCurrency, settings });
