@@ -3,6 +3,7 @@
 Full-stack trading journal & analytics terminal: accounts, multi-asset fills-first trades, automated fees, equity curve, calendar heatmap, strategies, tags, CSV export, attachments, and currency conversion.
 
 > Deployment note (trigger): This README bump ensures the latest backend image & schema (no obsolete `setupRef`) redeploys. No functional changes.
+
 # Aether Terminal
 
 Full-stack trading journal & analytics terminal: accounts, multi-asset fills-first trades, automated fees, equity curve, calendar heatmap, strategies, tags, CSV export, attachments, and currency conversion.
@@ -58,7 +59,7 @@ npx prisma migrate dev --name some_change
 ## Features at a glance
 - Auth (register/login via JWT)
 - Accounts (multi-currency)
-- Trades (risk/reward/R metrics; finalize with exit; setup mode)
+- Trades (fills-first, risk/reward/R metrics; finalize with exit)
 - Transactions (deposits/withdrawals)
 - Analytics
 	- Equity curve (realized PnL + cash flows) in user base currency
@@ -67,6 +68,155 @@ npx prisma migrate dev --name some_change
 - CSV export (trades, transactions)
 - Attachments (file upload per trade)
 - Settings (base currency, favorite account)
+
+## System overview and architecture
+- Backend: Node.js + Express + Prisma (PostgreSQL)
+- Frontend: React + TypeScript + Vite
+- Shared math utilities in `shared/`
+- Auth: JWT-based; backend middleware `requireAuth` protects routes
+- Files: attachments stored via backend (local upload path by default)
+
+### Domain models (Prisma)
+- User, Account, Trade, TradeFill, Transaction, Tag, TradeTag, Strategy, StrategyTag, Attachment
+- Fee models:
+	- AccountFee: per-asset-class fee rules (mode/value)
+	- TickerFee: per-ticker override (mode/value) with unique `(accountId, symbol)`
+
+### Fee model & precedence
+Fees are applied as round-trip costs where appropriate and are used in PnL calculations and exports.
+
+Order of precedence when determining fees for a trade:
+1) TickerFee override (per-symbol) if defined → mode in { PER_CONTRACT_DOLLAR, PER_CONTRACT_PERCENT }
+2) Futures defaults on Account (round-trip per contract):
+	 - `defaultFeePerMicroContract` if symbol is a micro (heuristic: starts with `M` and is a futures symbol)
+	 - `defaultFeePerMiniContract` otherwise for futures
+3) AccountFee matrix by assetClass (fallback) if provided
+4) For Topstep CSV import only, if none of the above exist, fall back to CSV `Fees + Commissions`
+
+Notes:
+- Futures defaults are interpreted as ROUND-TRIP per realized contract. For open trades (no exit), fee accrual is deferred.
+- Per-ticker overrides take precedence over all defaults and matrix rules.
+
+### Futures PnL computation
+Centralized in `backend/src/utils/pnl.ts`:
+- Point value multipliers:
+	- MES 5, ES 50, MNQ 2, NQ 20, MYM 0.5, YM 5, M2K 5, RTY 50, MET 0.1
+- Formula: `gross = dir * (exit - entry) * qty * pointValue`; `pnl = gross - fees`
+- Used consistently across: trade list, single trade views, analytics summaries, equity curve, calendar heatmap, and CSV export.
+
+### Fills-first trade model
+- On Topstep import, we create TradeFill rows for ENTRY (and EXIT if present). Metrics prefer fills when present.
+- If a trade lacks fills, legacy fields remain as fallback.
+
+## CSV import & export
+
+### Generic CSV import
+- Route: `POST /csv/trades/import` (multipart: `file`, `accountId`)
+- Upserts by id when provided; otherwise creates trades.
+
+### Topstep CSV import
+- Route: `POST /csv/topstep/import?explain=true` (multipart: `file`, `accountId`, optional `explain=true`)
+- Column mapping: `Id, ContractName, EnteredAt, ExitedAt, EntryPrice, ExitPrice, Size, Type, Fees, Commissions`
+- Date parsing handles `MM/DD/YYYY HH:mm:ss ±HH:MM` (timezone offset preserved)
+- Symbol normalization: Topstep contract (e.g., `MESZ5`) → Yahoo `.CME` format (e.g., `MESZ25.CME`) using entry date to resolve two-digit year
+- Asset class set to FUTURE, direction derived from `Type` (LONG/SHORT)
+- Fills created: ENTRY always; EXIT when present
+- Fee handling:
+	- Prefer account futures defaults (round-trip per realized contracts)
+	- Else fallback to CSV `Fees + Commissions`
+
+#### Duplicate prevention and manual trade protection
+- Stable ID: `topstep_<accountId>_<TopstepId>`; if `Id` missing, a hash of key fields is used
+- Only-new import: skip if ID already exists
+- Manual trade dedupe to avoid duplicating manually entered trades:
+	- Exact-second window (±5s): match same account, symbol, size, entryPrice, and direction → skip with reason `manual_match_exact`
+	- Minute-level window (ignore seconds): same account, symbol, entryPrice within tolerance and direction → skip with reason `manual_match_minute`
+- Explain diagnostics: if `explain=true`, response includes per-row skip reasons
+- UTF-8 BOM stripping on header to avoid misreading `Id`
+
+### CSV export
+- Trades: `GET /csv/trades` (uses `computeDirectionalPnl` for PnL column)
+- Transactions: `GET /csv/transactions`
+- Account bundle: `GET /csv/account-bundle?accountId=...` → zip of trades, transactions, and fees
+- Full user backup: `GET /csv/backup` → zip of accounts, trades, transactions, tags, settings, account fees
+
+## API surface (selected)
+
+Authentication
+- `POST /auth/register`, `POST /auth/login`
+
+Accounts
+- `GET /accounts`, `POST /accounts`, `GET /accounts/:id`, `PATCH /accounts/:id`, `DELETE /accounts/:id`
+- Per-asset-class fees: `GET /accounts/:id/fees`, `PUT /accounts/:id/fees`
+- Per-ticker fee overrides: `GET /accounts/:id/ticker-fees`, `PUT /accounts/:id/ticker-fees`
+
+Trades & fills
+- `GET /trades`, `POST /trades`, `PATCH /trades/:id`, `DELETE /trades/:id`
+- Fills created on import; additional fills endpoints may be added as needed
+
+Transactions
+- `GET /transactions`, `POST /transactions`, `DELETE /transactions/:id`
+
+Analytics
+- `GET /analytics/summary`, `GET /analytics/equity`, `GET /analytics/calendar`
+
+CSV
+- `GET /csv/trades`, `GET /csv/transactions`, `POST /csv/trades/import`
+- `POST /csv/topstep/import?explain=true`, `POST /csv/transactions/import`
+- `GET /csv/account-bundle`, `GET /csv/backup`
+
+Attachments
+- `POST /attachments` (multipart), `GET /attachments/:id`, linked to trades
+
+Settings & Tags
+- `GET/PUT /settings`
+- `GET/POST /tags`, `PUT /tags/:id`, `DELETE /tags/:id`, `POST /tags/merge`
+
+## Frontend structure
+- `src/App.tsx`, `src/router.tsx`: routing and layout
+- Pages: Dashboard (summary, equity, calendar), Trades (create/update, list), Accounts (fees, transactions), Settings, Tags
+- Components: analytics charts, equity curve, calendar heatmap, symbol autocomplete, modal containers, export buttons, placeholders while loading
+- Account Settings includes:
+	- Export CSVs (trades, transactions, account bundle)
+	- Import CSVs (trades, Topstep with explain, transactions)
+	- Edit fees (mini/micro defaults, per-asset-class matrix, per-ticker overrides)
+	- Manage transactions with `datetime-local` input
+
+## Data deletion/cascade
+Account delete flow runs inside a transaction in dependency order to avoid FK errors:
+1. Trade fills and attachments
+2. Trade tags
+3. Trades
+4. Transactions
+5. Account fees
+6. Account
+
+## Recreate-this-app contract (for AI/codegen)
+Core invariants:
+- Trades have direction, entry/exit price/time, size, and optional fills. PnL must use `futuresPointValue` mapping and subtract fees.
+- Fee precedence: TickerFee → futures mini/micro defaults (round-trip) → AccountFee by assetClass → CSV fees+commissions (Topstep import only).
+- Topstep import must normalize symbols to Yahoo `.CME`, dedupe by ID or key hash, protect manual trades (exact±5s and minute-level), and optionally explain skips.
+- Equity curve combines realized trade PnL and transactions, converting values to user base currency when applicable.
+- Calendar aggregates daily realized PnL and cash flows.
+
+Minimal environment to run:
+- Node 20+, Postgres, Prisma migrations applied, `.env` with `DATABASE_URL`, `JWT_SECRET`, and frontend `VITE_API_BASE_URL`.
+
+## Legacy / deprecated / removed
+- Setup Mode: removed via migrations `20251109082505_remove_setup_mode` and `20251109082631_remove_setup_mode`.
+- Checklist feature: removed via migration `20251109140000_remove_checklist`.
+- Old PnL logic (naive entry/exit diff without point value multipliers) replaced by `computeDirectionalPnl` everywhere.
+- Import behavior: previously updated existing trades; now Topstep import is “only-new” (skip existing by ID or hash) and uses fills.
+- Direct reliance on CSV fees for futures replaced by round-trip per-contract defaults (with per-ticker override now available). CSV fees used only as fallback.
+
+## Build & deploy
+See free-tier guide below for Vercel (frontend) + container host (backend). Ensure backend start command runs migrations before serving:
+`npx prisma migrate deploy && node dist/index.js`
+
+## Troubleshooting (additional)
+- UTF-8 BOM in CSV headers: parser strips BOM to ensure `Id` is recognized for Topstep import.
+- Minute-level duplicate skip: manual trades with minute-only precision won’t be duplicated by Topstep import.
+
 
 ## API Highlights
 - Auth: `POST /auth/register`, `POST /auth/login`
