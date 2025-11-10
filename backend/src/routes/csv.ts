@@ -256,7 +256,8 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 			const type = (r.Type || r.type || '').toString().toUpperCase(); // LONG/SHORT strings
 			const feesCol = toNum(r.Fees ?? r.fees) || 0;
 			const commCol = toNum(r.Commissions ?? r.commissions) || 0;
-			const fees = feesCol + commCol || null;
+			// Prefer account defaults (round-trip per contract) for futures; fallback to CSV fees+commissions
+			let fees: number | null = null;
 
 			if (!symbol || entryPrice == null || size == null || !entryTime) {
 				skippedMissing++;
@@ -318,6 +319,25 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 					&& (!direction || !c.direction || String(c.direction).toUpperCase() === direction));
 				if (sameMinute) { matchedExisting++; if (verbose) reasons.push({ topId, symbol: yahooSymbol, reason: 'manual_match_minute', matchedTradeId: sameMinute.id }); continue; }
 			}
+			// Compute round-trip fees based on account defaults when available
+			if (yahooSymbol) {
+				const miniDefault = (account as any)?.defaultFeePerMiniContract != null ? Number((account as any).defaultFeePerMiniContract) : null;
+				const microDefault = (account as any)?.defaultFeePerMicroContract != null ? Number((account as any).defaultFeePerMicroContract) : null;
+				const root = yahooSymbol.split('.')[0] || '';
+				const microLike = /^M[A-Z]{1,3}/.test(root); // MES/MNQ/MYM/M2K treated as micro
+				const per = (microLike && microDefault != null) ? microDefault : (!microLike && miniDefault != null ? miniDefault : null);
+				if (per != null) {
+					const realizedQty = (exitPrice != null || exitTime) ? Number(size || 0) : 0;
+					fees = Number((per * realizedQty).toFixed(6));
+				} else {
+					const sum = (feesCol + commCol);
+					fees = sum ? Number(sum) : null;
+				}
+			} else {
+				const sum = (feesCol + commCol);
+				fees = sum ? Number(sum) : null;
+			}
+
 			const data: any = {
 				userId: req.userId,
 				accountId,
