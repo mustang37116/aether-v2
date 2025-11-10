@@ -109,9 +109,9 @@ model Trade {
   symbol      String
   assetClass  AssetClass
   direction   TradeDirection? // LONG or SHORT; null for legacy trades until set
-  strategy    String? // freeform legacy field; superseded by strategyId relation
+  strategy    String? // legacy freeform
   strategyRef Strategy? @relation(fields: [strategyId], references: [id])
-  strategyId  String?
+  strategyId  String? // legacy single relation (will migrate to TradeStrategy join)
   size        Decimal   @db.Decimal(18,4)
   entryPrice  Decimal   @db.Decimal(18,6)
   exitPrice   Decimal?  @db.Decimal(18,6)
@@ -139,6 +139,14 @@ model Strategy {
   active      Boolean  @default(true)
   trades      Trade[]
   tags        StrategyTag[]
+  category    String?
+  riskProfile String?
+  playbookMarkdown String?
+  archivedAt DateTime?
+  version     Int      @default(1)
+  tradeLinks  TradeStrategy[]
+  versions    StrategyVersion[]
+  tagTemplates StrategyTagTemplate[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   @@unique([userId, name])
@@ -153,6 +161,54 @@ model StrategyTag {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   @@unique([strategyId, name])
+}
+
+model TradeStrategy {
+  id         String   @id @default(cuid())
+  trade      Trade    @relation(fields: [tradeId], references: [id])
+  tradeId    String
+  strategy   Strategy @relation(fields: [strategyId], references: [id])
+  strategyId String
+  weight     Decimal? @db.Decimal(5,2) // percentage relevance 0-100
+  createdAt  DateTime @default(now())
+  @@unique([tradeId, strategyId])
+}
+
+model StrategyVersion {
+  id          String   @id @default(cuid())
+  strategy    Strategy @relation(fields: [strategyId], references: [id])
+  strategyId  String
+  number      Int
+  notes       String?
+  createdAt   DateTime @default(now())
+  snapshots   StrategyMetricSnapshot[]
+  @@unique([strategyId, number])
+}
+
+model StrategyTagTemplate {
+  id          String   @id @default(cuid())
+  strategy    Strategy @relation(fields: [strategyId], references: [id])
+  strategyId  String
+  tag         Tag      @relation(fields: [tagId], references: [id])
+  tagId       String
+  required    Boolean  @default(false)
+  recommended Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  @@unique([strategyId, tagId])
+}
+
+model StrategyMetricSnapshot {
+  id               String   @id @default(cuid())
+  strategyVersion  StrategyVersion @relation(fields: [strategyVersionId], references: [id])
+  strategyVersionId String
+  rangeStart       DateTime
+  rangeEnd         DateTime
+  pnl              Decimal  @db.Decimal(18,2)
+  winRate          Decimal  @db.Decimal(5,2) // percent
+  avgR             Decimal  @db.Decimal(10,4)
+  breakdown        Json
+  createdAt        DateTime @default(now())
+  @@index([strategyVersionId])
 }
 
 enum TradeDirection {
@@ -190,10 +246,27 @@ model Tag {
   user    User     @relation(fields: [userId], references: [id])
   userId  String
   name    String
+  type    TagType  @default(CUSTOM)
+  color   String?
+  description String?
+  parent   Tag?     @relation("TagChildren", fields: [parentTagId], references: [id])
+  parentTagId String?
+  children Tag[]    @relation("TagChildren")
+  archivedAt DateTime?
   trades  TradeTag[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@unique([userId, name])
+}
+
+enum TagType {
+  SETUP
+  CONDITION
+  MISTAKE
+  MARKET
+  EXECUTION
+  OUTCOME
+  CUSTOM
 }
 
 model TradeTag {

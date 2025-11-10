@@ -275,7 +275,7 @@ router.put('/:id/exit', async (req: AuthRequest, res: Response) => {
 });
 
 router.post('/', async (req: AuthRequest, res: Response) => {
-  const { accountId, symbol, assetClass, direction, size, entryPrice, entryTime, stopPrice, targetPrice, strategy, strategyId, notes, confidence, tags, exitPrice, exitTime, fills, fees } = (req as any).body;
+  const { accountId, symbol, assetClass, direction, size, entryPrice, entryTime, stopPrice, targetPrice, strategy, strategyId, strategies, notes, confidence, tags, exitPrice, exitTime, fills, fees } = (req as any).body;
   // Derive assetClass if not provided
   const derived = await resolveAssetClassAndSymbol(symbol);
   const finalAssetClass = assetClass || derived.assetClass;
@@ -291,6 +291,15 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     if (!baseEntryTime) baseEntryTime = firstEntry.time || new Date().toISOString();
   }
   const trade = await prisma.trade.create({ data: { accountId, userId: req.userId!, symbol, assetClass: finalAssetClass as any, direction: direction || null, size: baseSize, entryPrice: baseEntryPrice, entryTime: new Date(baseEntryTime), stopPrice, targetPrice, strategy: strategy || null, strategyId: strategyId || null, notes: notes || null, confidence: typeof confidence === 'number' ? confidence : null, exitPrice: exitPrice ?? null, exitTime: exitTime ? new Date(exitTime) : null, fees: fees != null ? Number(fees) : null } as any });
+  // Multi-strategy associations
+  if (Array.isArray(strategies) && strategies.length) {
+    for (const s of strategies) {
+      if (!s || !s.strategyId) continue;
+      try {
+        await (prisma as any).tradeStrategy.create({ data: { tradeId: trade.id, strategyId: s.strategyId, weight: s.weight != null ? Number(s.weight) : null } });
+      } catch {/* ignore duplicate or invalid */}
+    }
+  }
   // Handle tags: list of tag names
   if (Array.isArray(tags) && tags.length) {
     for (const name of tags) {
@@ -355,6 +364,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
     targetPrice,
   strategy,
   strategyId,
+  strategies,
     notes,
     confidence,
   } = (req as any).body;
@@ -384,6 +394,17 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
   // setupMode removed
 
   const updated = await prisma.trade.update({ where: { id }, data });
+  // Update multi strategies if provided
+  if (strategies !== undefined) {
+    // Replace current set
+    await (prisma as any).tradeStrategy.deleteMany({ where: { tradeId: id } });
+    if (Array.isArray(strategies)) {
+      for (const s of strategies) {
+        if (!s || !s.strategyId) continue;
+        await (prisma as any).tradeStrategy.create({ data: { tradeId: id, strategyId: s.strategyId, weight: s.weight != null ? Number(s.weight) : null } });
+      }
+    }
+  }
   // If fees not explicitly set, but symbol/size/exit changed, recompute fees from fills
   if (fees === undefined && (symbol !== undefined || size !== undefined || exitPrice !== undefined || exitTime !== undefined)) {
     await recalcAndUpdateFees(id);
@@ -398,6 +419,36 @@ router.get('/:id/fills', async (req: AuthRequest, res: Response) => {
   if (!trade) return res.status(404).json({ error: 'trade not found' });
   const fills = await (prisma as any).tradeFill.findMany({ where: { tradeId: id }, orderBy: { time: 'asc' } });
   res.json(fills);
+});
+
+// Trade strategies listing
+router.get('/:id/strategies', async (req: AuthRequest, res: Response) => {
+  const { id } = (req as any).params;
+  const trade = await prisma.trade.findFirst({ where: { id, userId: req.userId } });
+  if (!trade) return res.status(404).json({ error: 'trade not found' });
+  const links = await (prisma as any).tradeStrategy.findMany({ where: { tradeId: id }, include: { strategy: true } });
+  res.json(links.map((l:any)=> ({ id: l.id, strategyId: l.strategyId, name: l.strategy?.name, weight: l.weight })));
+});
+
+// Add a single strategy link
+router.post('/:id/strategies', async (req: AuthRequest, res: Response) => {
+  const { id } = (req as any).params;
+  const { strategyId, weight } = (req as any).body || {};
+  const trade = await prisma.trade.findFirst({ where: { id, userId: req.userId } });
+  if (!trade) return res.status(404).json({ error: 'trade not found' });
+  const strat = await (prisma as any).strategy.findFirst({ where: { id: strategyId, userId: req.userId } });
+  if (!strat) return res.status(404).json({ error: 'strategy not found' });
+  const link = await (prisma as any).tradeStrategy.upsert({ where: { tradeId_strategyId: { tradeId: id, strategyId } }, update: { weight: weight != null ? Number(weight) : null }, create: { tradeId: id, strategyId, weight: weight != null ? Number(weight) : null } });
+  res.status(201).json(link);
+});
+
+// Remove a strategy link
+router.delete('/:id/strategies/:strategyId', async (req: AuthRequest, res: Response) => {
+  const { id, strategyId } = (req as any).params;
+  const trade = await prisma.trade.findFirst({ where: { id, userId: req.userId } });
+  if (!trade) return res.status(404).json({ error: 'trade not found' });
+  await (prisma as any).tradeStrategy.deleteMany({ where: { tradeId: id, strategyId } });
+  res.json({ ok: true });
 });
 
 // Add fills (single or batch)

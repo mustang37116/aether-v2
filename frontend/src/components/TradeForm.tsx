@@ -29,6 +29,7 @@ export default function TradeForm() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [strategies, setStrategies] = useState<any[]>([]);
   const [strategyId, setStrategyId] = useState<string|undefined>(undefined);
+  const [extraStrategies, setExtraStrategies] = useState<Record<string, boolean>>({});
   const [loadingAccount, setLoadingAccount] = useState(false);
   const saveTimer = useRef<number | null>(null);
   // Load default account automatically with precedence:
@@ -104,7 +105,8 @@ export default function TradeForm() {
   const payload:any = {
       accountId,
       symbol: form.symbol,
-    strategyId: strategyId || undefined,
+      strategyId: strategyId || undefined,
+      strategies: undefined as any,
       direction: form.direction,
       stopPrice: form.stopPrice ? Number(form.stopPrice) : undefined,
       targetPrice: form.targetPrice ? Number(form.targetPrice) : undefined,
@@ -113,6 +115,13 @@ export default function TradeForm() {
       confidence: form.confidence,
       tags: form.tags.split(',').map(t=>t.trim()).filter(Boolean),
     };
+    // Build multi-strategy list (primary + extras)
+    const selectedIds = new Set<string>();
+    if (strategyId) selectedIds.add(strategyId);
+    Object.keys(extraStrategies).forEach(id => { if (extraStrategies[id]) selectedIds.add(id); });
+    if (selectedIds.size > 0) {
+      payload.strategies = Array.from(selectedIds).map(id => ({ strategyId: id }));
+    }
     // Always using fills-only model; require at least one ENTRY fill.
     if (!form.fills.length || !form.fills.some(f=> f.type==='ENTRY')) {
       alert('Add at least one ENTRY fill before creating the trade.');
@@ -181,6 +190,19 @@ export default function TradeForm() {
           {strategies.map((s:any)=> <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
       </label>
+      {strategies.length > 0 && (
+        <div className='form-field'>
+          <span style={{fontSize:12, opacity:.8}}>Additional Strategies</span>
+          <div style={{display:'flex', flexWrap:'wrap', gap:8}}>
+            {strategies.map((s:any)=> (
+              <label key={s.id} style={{display:'inline-flex', alignItems:'center', gap:6, fontSize:12, border:'1px solid rgba(255,255,255,0.15)', borderRadius:6, padding:'2px 6px'}}>
+                <input type='checkbox' checked={!!extraStrategies[s.id]} onChange={e=> setExtraStrategies(prev => ({ ...prev, [s.id]: e.target.checked }))} />
+                <span>{s.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
       {/* Row 3: Notes full width */}
       <textarea placeholder='Notes' value={form.notes} onChange={e => update('notes', e.target.value)} rows={3} className='span-2' />
       {/* Row 4: Direction full width, then Stop/Target */}
