@@ -250,7 +250,7 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 			if (!symbol || !entryPrice || !size || !entryTime) { skipped++; continue; }
 
 			const direction: 'LONG' | 'SHORT' | null = type.includes('LONG') ? 'LONG' : type.includes('SHORT') ? 'SHORT' : null;
-			const { symbol: yahooSymbol, changed } = normalizeYahooSymbol(symbol, entryTime);
+			const { symbol: yahooSymbol } = normalizeYahooSymbol(symbol, entryTime);
 			const id = topId ? `topstep_${accountId}_${topId}` : undefined;
 			const data: any = {
 				userId: req.userId,
@@ -264,10 +264,7 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 				exitTime: exitTime ?? null,
 				fees,
 				direction,
-				notes: [
-					changed ? `Original Topstep symbol: ${symbol}` : null,
-					r.TradeDay ? `Topstep TradeDay ${r.TradeDay}` : null
-				].filter(Boolean).join(' | ') || null
+				notes: null
 			};
 
 			if (id) {

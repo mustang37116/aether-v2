@@ -19,6 +19,16 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [txType, setTxType] = useState<'DEPOSIT'|'WITHDRAWAL'>('DEPOSIT');
   const [txAmount, setTxAmount] = useState<string>('');
+  const [txCreatedAt, setTxCreatedAt] = useState<string>(() => {
+    const d = new Date();
+    const pad = (n:number)=> String(n).padStart(2,'0');
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth()+1);
+    const dd = pad(d.getDate());
+    const HH = pad(d.getHours());
+    const MM = pad(d.getMinutes());
+    return `${yyyy}-${mm}-${dd}T${HH}:${MM}`; // datetime-local format (no seconds)
+  });
   const [txMsg, setTxMsg] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -78,7 +88,12 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
     const amt = Number(txAmount);
     if (!amt || amt <= 0 || !account) return;
     try {
-      await api.post('/transactions', { accountId, type: txType, amount: amt, currency: account.currency });
+      const payload: any = { accountId, type: txType, amount: amt, currency: account.currency };
+      if (txCreatedAt) {
+        const dt = new Date(txCreatedAt);
+        if (!isNaN(dt.getTime())) payload.createdAt = dt.toISOString();
+      }
+      await api.post('/transactions', payload);
       setTxMsg('Saved'); setTxAmount('');
       const txRes = await api.get('/transactions', { params: { accountId } });
       setTransactions(txRes.data as Transaction[]);
@@ -225,6 +240,10 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
         <option value='WITHDRAWAL'>Withdrawal</option>
       </select>
       <input type='number' placeholder='Amount' value={txAmount} onChange={e=>setTxAmount(e.target.value)} />
+      <label style={{display:'flex', alignItems:'center', gap:4, fontSize:12}}>
+        <span>Date</span>
+        <input type='datetime-local' value={txCreatedAt} onChange={e=>setTxCreatedAt(e.target.value)} />
+      </label>
       <button type='button' onClick={submitTx} disabled={!txAmount}>Save</button>
     </div>
     <table style={{width:'100%', marginTop:12}} className='trade-table'>
