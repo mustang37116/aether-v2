@@ -10,7 +10,7 @@ export default function TradeChart({ trade, height=300 }: Props){
   const api = useApi();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|null>(null);
-  const [interval, setInterval] = useState<'5m'|'15m'|'1h'|'1d'>(()=> '1d');
+  const [interval, setInterval] = useState<'1m'|'2m'|'3m'|'5m'|'15m'|'1h'|'1d'>(()=> '1d');
   const [windowDays, setWindowDays] = useState<number>(()=> 30);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
@@ -20,8 +20,10 @@ export default function TradeChart({ trade, height=300 }: Props){
   // Keep window reasonable for intraday to reduce upstream errors
   useEffect(()=>{
     if (!settingsLoaded) return; // wait until settings applied
-    if (interval === '5m' && windowDays > 5) setWindowDays(5);
-    else if (interval !== '1d' && windowDays > 30) setWindowDays(15);
+  // Tighten max window for very short intervals to keep payloads sane
+  if (['1m','2m','3m'].includes(interval) && windowDays > 2) setWindowDays(2);
+  else if (interval === '5m' && windowDays > 5) setWindowDays(5);
+  else if (interval !== '1d' && windowDays > 30) setWindowDays(15);
   }, [interval, windowDays, settingsLoaded]);
 
   // Initialize from user settings if available
@@ -147,10 +149,13 @@ export default function TradeChart({ trade, height=300 }: Props){
     const isDaily = interval === '1d';
     let padSecs: number;
     switch(interval){
-      case '5m': padSecs = 60*60*3; break;        // 3 hours each side
-      case '15m': padSecs = 60*60*6; break;       // 6 hours each side
-      case '1h': padSecs = 60*60*24; break;       // 1 day each side
-      default: padSecs = 86400*3;                 // 3 days each side
+      case '1m': padSecs = 60*60*1.5; break;     // 1.5h each side
+      case '2m': padSecs = 60*60*2; break;       // 2h
+      case '3m': padSecs = 60*60*2.5; break;     // 2.5h
+      case '5m': padSecs = 60*60*3; break;       // 3h
+      case '15m': padSecs = 60*60*6; break;      // 6h
+      case '1h': padSecs = 60*60*24; break;      // 1 day
+      default: padSecs = 86400*3;                // 3 days (daily)
     }
     const fromNum = Math.max(Number(candles[0].time), Math.min(entryTs, exitTs) - padSecs);
     const toNum = Math.min(Number(candles[candles.length-1].time), Math.max(entryTs, exitTs) + padSecs);
@@ -167,6 +172,9 @@ export default function TradeChart({ trade, height=300 }: Props){
             <option value='1h'>1H</option>
             <option value='15m'>15M</option>
             <option value='5m'>5M</option>
+            <option value='3m'>3M</option>
+            <option value='2m'>2M</option>
+            <option value='1m'>1M</option>
           </select>
         </label>
         <label style={{display:'inline-flex', alignItems:'center', gap:6}}>

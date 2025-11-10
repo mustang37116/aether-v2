@@ -10,7 +10,7 @@ export default function SettingsPage(){
   const [baseCurrency, setBaseCurrency] = useState('USD');
   const [accounts, setAccounts] = useState<any[]>([]);
   const [favoriteAccountId, setFavoriteAccountId] = useState<string>('');
-  const [defaultChartInterval, setDefaultChartInterval] = useState<'1d'|'1h'|'15m'>('1d');
+  const [defaultChartInterval, setDefaultChartInterval] = useState<'1d'|'1h'|'15m'|'5m'|'3m'|'2m'|'1m'>('1d');
   const [defaultChartWindowDays, setDefaultChartWindowDays] = useState<number>(30);
   const [theme, setTheme] = useState<string>('aurora');
   const [saving, setSaving] = useState(false);
@@ -78,6 +78,9 @@ export default function SettingsPage(){
               <option value='1h'>1H</option>
               <option value='15m'>15M</option>
               <option value='5m'>5M</option>
+              <option value='3m'>3M</option>
+              <option value='2m'>2M</option>
+              <option value='1m'>1M</option>
             </select>
           </label>
           <label style={{display:'grid', gap:4}}>

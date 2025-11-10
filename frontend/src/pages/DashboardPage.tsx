@@ -4,6 +4,7 @@ import AnalyticsBreakdown from '../components/AnalyticsBreakdown';
 import DashboardFilters, { Filters } from '../components/DashboardFilters';
 import { useEffect, useState } from 'react';
 import { useApi } from '../hooks/useApi';
+import { getCached, setCached } from '../hooks/cache';
 import './Dashboard.css';
 export default function DashboardPage() {
   const api = useApi();
@@ -16,12 +17,21 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<any|null>(null);
   const [balance, setBalance] = useState<number|null>(null);
   useEffect(()=>{
+    let cancelled = false;
+    const cacheKey = `dashboard:${filters.accountId||'all'}`;
+    // Try cache first for instant paint
+    const cached = getCached<any>(cacheKey);
+    if (cached) {
+      setStats(cached.stats);
+      setBalance(cached.balance);
+    }
     (async()=>{
       try {
         const [tradesResp, txResp] = await Promise.all([
           api.get('/trades', { params: { accountId: filters.accountId } }),
           api.get('/transactions', { params: { accountId: filters.accountId } })
         ]);
+        if (cancelled) return;
         const trades = tradesResp.data.trades || tradesResp.data || [];
         const total = trades.length;
         const sumQty = (arr:any[], type:'ENTRY'|'EXIT') => (arr||[]).filter(f=>f.type===type).reduce((s:number,f:any)=> s + Number(f.size||0), 0);
@@ -43,15 +53,20 @@ export default function DashboardPage() {
         }
         const winRate = closed>0 ? (wins/closed)*100 : 0;
         const avgR = closed>0 ? rSum/closed : 0;
-        setStats({ total, closed, open, winRate, pnlSum, avgR });
+  const computedStats = { total, closed, open, winRate, pnlSum, avgR };
+  setStats(computedStats);
 
         // Account balance = deposits - withdrawals + realized PnL (fees already included in t.pnl)
         const txs:any[] = txResp.data || [];
         const netTx = txs.reduce((s,tx:any)=> s + (tx.type === 'DEPOSIT' ? Number(tx.amount) : -Number(tx.amount)), 0);
         const realized = trades.reduce((s:number,t:any)=> s + (typeof t.pnl === 'number' ? Number(t.pnl) : 0), 0);
-        setBalance(netTx + realized);
+        const computedBalance = netTx + realized;
+        setBalance(computedBalance);
+        // Cache fresh snapshot (TTL 30s)
+        setCached(cacheKey, { stats: computedStats, balance: computedBalance }, 30000);
       } catch {}
     })();
+    return () => { cancelled = true; };
   }, [filters.accountId]);
   return (
     <div className='dashboard-root'>

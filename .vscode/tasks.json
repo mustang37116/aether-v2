@@ -8,6 +8,14 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "git-commit-push-dashboard-cache-intervals",
+			"type": "shell",
+			"command": "git add -A && git commit -m \"dashboard: gentle localStorage cache for stats (30s TTL) for instant paint; charts: add 1/2/3m intervals + tighter windows; settings: expose 1/2/3m default interval\" && git push origin main",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
 		}
 	]
 }
