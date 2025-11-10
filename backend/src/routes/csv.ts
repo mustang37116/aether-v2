@@ -164,6 +164,87 @@ router.post('/trades/import', upload.single('file'), async (req: AuthRequest, re
 	}
 });
 
+// Import Topstep trades CSV for a single account (special column mapping)
+router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, res) => {
+	const { accountId } = req.body as { accountId?: string };
+	if (!accountId) return res.status(400).json({ error: 'accountId required' });
+	const account = await prisma.account.findFirst({ where: { id: accountId, userId: req.userId } });
+	if (!account) return res.status(404).json({ error: 'account not found' });
+	if (!req.file) return res.status(400).json({ error: 'file required' });
+
+	// 11/06/2025 19:25:01 -07:00 -> 2025-11-06T19:25:01-07:00
+	const parseTopstepDate = (s?: string): Date | null => {
+		if (!s) return null;
+		const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2}) ([+-]\d{2}:\d{2})$/);
+		if (!m) {
+			// Fallback: try native Date
+			const d = new Date(s);
+			return isNaN(d.getTime()) ? null : d;
+		}
+		const [, mm, dd, yyyy, HH, MM, SS, offset] = m;
+		const iso = `${yyyy}-${mm}-${dd}T${HH}:${MM}:${SS}${offset}`;
+		const d = new Date(iso);
+		return isNaN(d.getTime()) ? null : d;
+	};
+
+	const toNum = (v: any): number | null => {
+		if (v === undefined || v === null || v === '') return null;
+		const n = Number(v);
+		return isNaN(n) ? null : n;
+	};
+
+	try {
+		const text = req.file.buffer.toString('utf8');
+		const { rows } = parseCsv(text);
+		let imported = 0; let updated = 0; let skipped = 0;
+		for (const r of rows) {
+			// Map Topstep columns
+			const topId = (r.Id || r.id || '').trim();
+			const symbol = (r.ContractName || r.symbol || '').trim();
+			const entryTime = parseTopstepDate(r.EnteredAt || r.entryTime || r.EntryTime);
+			const exitTime = parseTopstepDate(r.ExitedAt || r.exitTime || r.ExitTime);
+			const entryPrice = toNum(r.EntryPrice ?? r.entryPrice);
+			const exitPrice = toNum(r.ExitPrice ?? r.exitPrice);
+			const size = toNum(r.Size ?? r.size);
+			const type = (r.Type || r.type || '').toString().toUpperCase(); // LONG/SHORT strings
+			const feesCol = toNum(r.Fees ?? r.fees) || 0;
+			const commCol = toNum(r.Commissions ?? r.commissions) || 0;
+			const fees = feesCol + commCol || null;
+
+			if (!symbol || !entryPrice || !size || !entryTime) { skipped++; continue; }
+
+			const direction: 'LONG' | 'SHORT' | null = type.includes('LONG') ? 'LONG' : type.includes('SHORT') ? 'SHORT' : null;
+			const id = topId ? `topstep_${accountId}_${topId}` : undefined;
+			const data: any = {
+				userId: req.userId,
+				accountId,
+				symbol,
+				assetClass: 'FUTURE',
+				size,
+				entryPrice,
+				entryTime,
+				exitPrice: exitPrice ?? null,
+				exitTime: exitTime ?? null,
+				fees,
+				direction,
+				notes: (r.TradeDay ? `Topstep TradeDay ${r.TradeDay}` : null)
+			};
+
+			if (id) {
+				await (prisma as any).trade.upsert({ where: { id }, update: data, create: { id, ...data } });
+				updated++;
+			} else {
+				await (prisma as any).trade.create({ data });
+				imported++;
+			}
+		}
+		res.json({ imported, updated, skipped });
+	} catch (e: any) {
+		console.error(e);
+		res.status(500).json({ error: 'topstep import failed', detail: e.message });
+	}
+});
+
 // Import transactions CSV for a single account
 router.post('/transactions/import', upload.single('file'), async (req: AuthRequest, res) => {
 	const { accountId } = req.body as { accountId?: string };

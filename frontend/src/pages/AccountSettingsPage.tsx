@@ -150,6 +150,23 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
           }} />
         </label>
         <label style={{display:'flex', alignItems:'center', gap:4, fontSize:12}}>
+          <span>Import Topstep CSV</span>
+          <input type='file' accept='.csv' onChange={async e => {
+            const f = e.target.files?.[0]; if (!f) return;
+            const form = new FormData(); form.append('file', f); form.append('accountId', account.id);
+            try {
+              const r = await fetch(apiUrl('/csv/topstep/import'), { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` }, body: form });
+              const j = await r.json();
+              if (r.ok) {
+                alert(`Topstep import: imported ${j.imported||0}, updated ${j.updated||0}, skipped ${j.skipped||0}`);
+              } else {
+                alert(j.error || 'Import failed');
+              }
+            } catch { alert('Import failed'); }
+            e.target.value='';
+          }} />
+        </label>
+        <label style={{display:'flex', alignItems:'center', gap:4, fontSize:12}}>
           <span>Import Transactions CSV</span>
           <input type='file' accept='.csv' onChange={async e => {
             const f = e.target.files?.[0]; if (!f) return;
