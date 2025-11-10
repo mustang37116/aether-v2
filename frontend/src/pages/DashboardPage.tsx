@@ -35,7 +35,13 @@ export default function DashboardPage() {
         const trades = tradesResp.data.trades || tradesResp.data || [];
         const total = trades.length;
         const sumQty = (arr:any[], type:'ENTRY'|'EXIT') => (arr||[]).filter(f=>f.type===type).reduce((s:number,f:any)=> s + Number(f.size||0), 0);
-        let wins=0, losses=0, pnlSum=0, rSum=0, closed=0, open=0;
+        const avgPrice = (fills:any[]) => {
+          const totalSz = fills.reduce((s:number,f:any)=> s + Number(f.size||0), 0);
+          if (!totalSz) return null;
+          const totalPxSz = fills.reduce((s:number,f:any)=> s + (Number(f.price)||0) * (Number(f.size)||0), 0);
+          return totalPxSz / totalSz;
+        };
+        let wins=0, losses=0, pnlSum=0, rSum=0, rCount=0, closed=0, open=0;
         for (const t of trades){
           const fills = t.tradeFills || [];
           const qtyEntry = sumQty(fills, 'ENTRY');
@@ -46,13 +52,25 @@ export default function DashboardPage() {
             const pnl = typeof t.pnl === 'number' ? Number(t.pnl) : ((Number(t.exitPrice) - Number(t.entryPrice)) * Number(t.size) - Number(t.fees||0));
             pnlSum += pnl;
             if (pnl>0) wins++; else if (pnl<0) losses++;
-            if (t.metrics?.R != null) rSum += Number(t.metrics.R);
+            // Compute realized R where possible without relying on TP; prefer using SL if present
+            const entryPx = (avgPrice(fills.filter((f:any)=>f.type==='ENTRY')) ?? (Number(t.entryPrice)||null));
+            const exitPx = (avgPrice(fills.filter((f:any)=>f.type==='EXIT')) ?? (Number(t.exitPrice)||null));
+            const stopPx = t.stopPrice != null ? Number(t.stopPrice) : null; // may be null
+            const realizedQty = qtyEntry > 0 && qtyExit > 0 ? Math.min(qtyEntry, qtyExit) : (Number(t.size)||0);
+            if (stopPx != null && entryPx != null && exitPx != null && realizedQty > 0){
+              const risk = Math.abs(entryPx - stopPx) * realizedQty;
+              const reward = Math.abs(exitPx - entryPx) * realizedQty; // realized distance
+              if (risk > 0) { rSum += (reward / risk); rCount++; }
+            } else if (t.metrics?.R != null) {
+              // Fallback to server-computed R if available
+              rSum += Math.abs(Number(t.metrics.R)); rCount++;
+            }
           } else {
             open++;
           }
         }
         const winRate = closed>0 ? (wins/closed)*100 : 0;
-        const avgR = closed>0 ? rSum/closed : 0;
+        const avgR = rCount>0 ? rSum/rCount : 0;
   const computedStats = { total, closed, open, winRate, pnlSum, avgR };
   setStats(computedStats);
 
@@ -75,13 +93,12 @@ export default function DashboardPage() {
           <DashboardFilters value={filters} onChange={setFilters} />
           {stats && (
             <div className='stats-row'>
-              {balance != null && <BigNumber label='Balance' value={balance.toFixed(2)} />}
+              {balance != null && <BigNumber label='Balance' value={formatCurrency(balance)} />}
               <BigNumber label='Trades' value={stats.total} />
-              <BigNumber label='Closed' value={stats.closed} />
               <BigNumber label='Open' value={stats.open} />
               <BigNumber label='Win %' value={stats.winRate.toFixed(1)} />
-              <BigNumber label='PnL' value={stats.pnlSum.toFixed(2)} />
-              <BigNumber label='Avg R' value={stats.avgR.toFixed(2)} />
+              <BigNumber label='PnL' value={formatCurrency(stats.pnlSum)} />
+              <BigNumber label='Avg R' value={formatR(stats.avgR)} />
             </div>
           )}
         </div>
@@ -106,4 +123,14 @@ function BigNumber({ label, value }: { label:string; value:any }) {
       <div className='value'>{value}</div>
     </div>
   );
+}
+
+function formatCurrency(n: number){
+  try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n); } catch { return `$${n.toFixed(2)}`; }
+}
+
+function formatR(avgR: number){
+  if (!isFinite(avgR)) return '—';
+  const r = Math.abs(avgR);
+  return `1:${r.toFixed(2)}`;
 }

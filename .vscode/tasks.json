@@ -24,6 +24,14 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "git-commit-push-dashboard-stats-formatting",
+			"type": "shell",
+			"command": "git add -A && git commit -m \"dashboard: remove Closed stat; currency format Balance/PnL; Avg R as 1:ratio and compute from realized distance using SL when available (fallback to metrics)\" && git push origin main",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
 		}
 	]
 }
