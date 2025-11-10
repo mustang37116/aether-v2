@@ -232,7 +232,7 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 	try {
 		const text = req.file.buffer.toString('utf8');
 		const { rows } = parseCsv(text);
-		let imported = 0; let updated = 0; let skipped = 0;
+		let imported = 0; let updated = 0; let skipped = 0; let duplicates = 0;
 		for (const r of rows) {
 			// Map Topstep columns
 			const topId = (r.Id || r.id || '').trim();
@@ -250,8 +250,13 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 			if (!symbol || !entryPrice || !size || !entryTime) { skipped++; continue; }
 
 			const direction: 'LONG' | 'SHORT' | null = type.includes('LONG') ? 'LONG' : type.includes('SHORT') ? 'SHORT' : null;
-			const { symbol: yahooSymbol } = normalizeYahooSymbol(symbol, entryTime);
-			const id = topId ? `topstep_${accountId}_${topId}` : undefined;
+					const { symbol: yahooSymbol } = normalizeYahooSymbol(symbol, entryTime);
+					const id = topId ? `topstep_${accountId}_${topId}` : undefined;
+					if (id) {
+						// Only import new trades: skip if already present
+						const exists = await prisma.trade.findFirst({ where: { id } });
+						if (exists) { duplicates++; continue; }
+					}
 			const data: any = {
 				userId: req.userId,
 				accountId,
@@ -267,15 +272,15 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 				notes: null
 			};
 
-			if (id) {
-				await (prisma as any).trade.upsert({ where: { id }, update: data, create: { id, ...data } });
-				updated++;
-			} else {
-				await (prisma as any).trade.create({ data });
-				imported++;
-			}
+					if (id) {
+						await (prisma as any).trade.create({ data: { id, ...data } });
+						imported++;
+					} else {
+						await (prisma as any).trade.create({ data });
+						imported++;
+					}
 		}
-		res.json({ imported, updated, skipped });
+				res.json({ imported, updated, skipped: skipped + duplicates });
 	} catch (e: any) {
 		console.error(e);
 		res.status(500).json({ error: 'topstep import failed', detail: e.message });
