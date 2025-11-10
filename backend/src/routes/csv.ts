@@ -232,7 +232,7 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 	try {
 		const text = req.file.buffer.toString('utf8');
 		const { rows } = parseCsv(text);
-		let imported = 0; let updated = 0; let skipped = 0; let duplicates = 0;
+		let imported = 0; let updated = 0; let skipped = 0; let duplicates = 0; let fillsCreated = 0;
 		for (const r of rows) {
 			// Map Topstep columns
 			const topId = (r.Id || r.id || '').trim();
@@ -272,15 +272,32 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 				notes: null
 			};
 
-					if (id) {
-						await (prisma as any).trade.create({ data: { id, ...data } });
-						imported++;
-					} else {
-						await (prisma as any).trade.create({ data });
-						imported++;
-					}
+							if (id) {
+								const trade = await (prisma as any).trade.create({ data: { id, ...data } });
+								imported++;
+								// Create ENTRY fill
+								try {
+									await (prisma as any).tradeFill.create({ data: { tradeId: trade.id, type: 'ENTRY', price: entryPrice, size, time: entryTime } });
+									fillsCreated++;
+									if (exitPrice != null && exitTime) {
+										await (prisma as any).tradeFill.create({ data: { tradeId: trade.id, type: 'EXIT', price: exitPrice, size, time: exitTime } });
+										fillsCreated++;
+									}
+								} catch {}
+							} else {
+								const trade = await (prisma as any).trade.create({ data });
+								imported++;
+								try {
+									await (prisma as any).tradeFill.create({ data: { tradeId: trade.id, type: 'ENTRY', price: entryPrice, size, time: entryTime } });
+									fillsCreated++;
+									if (exitPrice != null && exitTime) {
+										await (prisma as any).tradeFill.create({ data: { tradeId: trade.id, type: 'EXIT', price: exitPrice, size, time: exitTime } });
+										fillsCreated++;
+									}
+								} catch {}
+							}
 		}
-				res.json({ imported, updated, skipped: skipped + duplicates });
+						res.json({ imported, updated, skipped: skipped + duplicates, fillsCreated });
 	} catch (e: any) {
 		console.error(e);
 		res.status(500).json({ error: 'topstep import failed', detail: e.message });
