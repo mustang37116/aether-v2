@@ -101,7 +101,7 @@ export default function ModalContainer({
     }
 
     // Compute whether modal is "long" relative to the available overlay area
-    const overlay = ref.current?.closest('.modal-overlay-view, .modal-overlay-edit') as HTMLElement | null;
+  const overlay = ref.current?.closest('.modal-overlay-view, .modal-overlay-edit') as HTMLElement | null;
     const updateLongState = () => {
       const node = ref.current;
       const ov = overlay;
@@ -110,16 +110,15 @@ export default function ModalContainer({
       const pt = parseFloat(cs.paddingTop) || 0;
       const pb = parseFloat(cs.paddingBottom) || 0;
       const available = ov.clientHeight - pt - pb;
-      // Use offsetHeight (actual rendered height) not scrollHeight (full scrollable content) to decide centering vs top anchor
       const rendered = node.offsetHeight;
-      // Threshold: if modal consumes > 88% of available space, treat as long (anchor top)
+      // Threshold remains ~88% of available height
       const isLong = rendered >= available * 0.88;
       ov.classList.toggle('modal-long', isLong);
       node.classList.toggle('modal-long', isLong);
-      if ((import.meta as any)?.env?.DEV) {
-        // Debug instrumentation (dev only)
-        // eslint-disable-next-line no-console
-        console.debug('[Modal sizing]', { available, rendered, isLong });
+      // When NOT long, ensure vertical centering doesn't depend on scroll position.
+      // Force the overlay to scroll to top so padding centering math stays consistent.
+      if (!isLong) {
+        try { ov.scrollTo({ top: 0 }); } catch {}
       }
     };
 

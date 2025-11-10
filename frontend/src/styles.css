@@ -120,16 +120,17 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 /* View vs Edit modal overlays: lighter for view, moderate dim for edit */
 .modal-overlay-view,
 .modal-overlay-edit {
-	/* Grid centering for robust positioning regardless of zoom; safe-area aware generous padding */
+	/* Safe-area aware generous padding */
 	--overlay-vpad: clamp(48px, 12vh, 140px);
 	--pad-top: max(env(safe-area-inset-top), var(--overlay-vpad));
 	--pad-bottom: max(env(safe-area-inset-bottom), var(--overlay-vpad));
 	--pad-left: max(env(safe-area-inset-left), 16px);
 	--pad-right: max(env(safe-area-inset-right), 16px);
-	position: fixed; inset: 0; display: grid; place-items: center; z-index: 1000;
-	justify-items: center; /* ensure horizontal centering even if content wider temporarily */
+	position: fixed; inset: 0; z-index: 1000;
+	display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
 	padding: var(--pad-top) var(--pad-right) var(--pad-bottom) var(--pad-left);
 	opacity: 0; animation: overlayFadeIn 180ms ease-out forwards;
+	overflow-y: auto;
 }
 
 @media (min-width: 1000px) {
@@ -161,12 +162,10 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 	box-shadow: 0 26px 70px -16px rgba(0,0,0,0.68), 0 6px 14px rgba(0,0,0,0.45);
 	backdrop-filter: blur(22px) saturate(155%);
 	-webkit-backdrop-filter: blur(22px) saturate(155%);
-	opacity: 0; transform: translate(-50%, 14px) scale(0.985);
+	opacity: 0; transform: translateY(14px) scale(0.985);
 	will-change: opacity, transform;
 	animation: modalPop 210ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-	margin: 0 auto; /* Ensure modal stays centered */
-	left: 50%;
-	transform: translate(-50%, 14px) scale(0.985); /* preserve original pop transform with horizontal centering */
+	margin: 0 auto;
 	position: relative;
 }
 
@@ -193,9 +192,6 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 }
 .modal-overlay-view.modal-long,
 .modal-overlay-edit.modal-long {
-	/* When content is too tall, anchor near top instead of forced center */
-	place-items: start center;
-	/* Reduce top padding so header never clips; ensure safe-area still respected */
 	--overlay-vpad: clamp(32px, 8vh, 120px);
 }
 .modal.modal-long {
@@ -256,8 +252,8 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 }
 
 @keyframes modalPop {
-	0% { opacity: 0; transform: translate(-50%, 14px) scale(0.985); }
-	100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+	0% { opacity: 0; transform: translateY(14px) scale(0.985); }
+	100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
