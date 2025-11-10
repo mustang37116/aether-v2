@@ -237,8 +237,9 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 	try {
 		const text = req.file.buffer.toString('utf8');
 		const { rows } = parseCsv(text);
-		let imported = 0; let updated = 0; let skipped = 0; let duplicates = 0; let fillsCreated = 0;
-		let matchedExisting = 0;
+		const verbose = ((req as any).query && (req as any).query.explain === 'true') || ((req as any).body && (req as any).body.explain === 'true');
+		let imported = 0; let updated = 0; let skippedMissing = 0; let duplicates = 0; let fillsCreated = 0; let matchedExisting = 0;
+		const reasons: any[] = [];
 		for (const r of rows) {
 			// Map Topstep columns
 			const topId = (r.Id || r.id || '').toString().trim();
@@ -253,7 +254,11 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 			const commCol = toNum(r.Commissions ?? r.commissions) || 0;
 			const fees = feesCol + commCol || null;
 
-			if (!symbol || !entryPrice || !size || !entryTime) { skipped++; continue; }
+			if (!symbol || entryPrice == null || size == null || !entryTime) {
+				skippedMissing++;
+				if (verbose) reasons.push({ topId, symbol, reason: 'missing_required_field', have: { symbol: !!symbol, entryPrice, size, entryTimeRaw: r.EnteredAt || r.entryTime || r.EntryTime } });
+				continue;
+			}
 
 			const direction: 'LONG' | 'SHORT' | null = type.includes('LONG') ? 'LONG' : type.includes('SHORT') ? 'SHORT' : null;
 			const { symbol: yahooSymbol } = normalizeYahooSymbol(symbol, entryTime);
@@ -267,7 +272,7 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 			if (id) {
 				// Only import new trades: skip if already present
 				const exists = await prisma.trade.findFirst({ where: { id } });
-				if (exists) { duplicates++; continue; }
+				if (exists) { duplicates++; if (verbose) reasons.push({ topId, id, reason: 'duplicate_id' }); continue; }
 			}
 
 			// Content-based dedupe: avoid importing a trade that already exists manually
@@ -289,7 +294,7 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 				const same = candidates.find(c => Number(c.size) === Number(size)
 					&& Math.abs(Number(c.entryPrice) - Number(entryPrice)) < 1e-6
 					&& (!direction || !c.direction || String(c.direction).toUpperCase() === direction));
-				if (same) { matchedExisting++; continue; }
+				if (same) { matchedExisting++; if (verbose) reasons.push({ topId, symbol: yahooSymbol, reason: 'manual_match', matchedTradeId: same.id }); continue; }
 			}
 			const data: any = {
 				userId: req.userId,
@@ -331,7 +336,7 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 								} catch {}
 							}
 					}
-						res.json({ imported, updated, skipped: skipped + duplicates + matchedExisting, duplicates, matchedExisting, fillsCreated });
+						res.json({ imported, updated, skipped: skippedMissing + duplicates + matchedExisting, skippedMissing, duplicates, matchedExisting, fillsCreated, totalRows: rows.length, explain: verbose ? reasons : undefined });
 	} catch (e: any) {
 		console.error(e);
 		res.status(500).json({ error: 'topstep import failed', detail: e.message });
