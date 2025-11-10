@@ -282,7 +282,7 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 			// Content-based dedupe: avoid importing a trade that already exists manually
 			// Only apply when there is NO Topstep Id (since Topstep Id already guarantees uniqueness)
 			// Match on same account, symbol, size, entryPrice and entryTime within a small window (±5s)
-			if (!topId && entryTime) {
+			if (entryTime) {
 				const windowStart = new Date(entryTime.getTime() - 5_000);
 				const windowEnd = new Date(entryTime.getTime() + 5_000);
 				const candidates: any[] = await prisma.trade.findMany({
@@ -295,10 +295,28 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 					},
 					select: { id: true, size: true, entryPrice: true, direction: true }
 				});
-				const same = candidates.find(c => Number(c.size) === Number(size)
+				const sameExact = (!topId) && candidates.find(c => Number(c.size) === Number(size)
 					&& Math.abs(Number(c.entryPrice) - Number(entryPrice)) < 1e-6
 					&& (!direction || !c.direction || String(c.direction).toUpperCase() === direction));
-				if (same) { matchedExisting++; if (verbose) reasons.push({ topId, symbol: yahooSymbol, reason: 'manual_match', matchedTradeId: same.id }); continue; }
+				if (sameExact) { matchedExisting++; if (verbose) reasons.push({ topId, symbol: yahooSymbol, reason: 'manual_match_exact', matchedTradeId: sameExact.id }); continue; }
+
+				// Minute-level match (ignore seconds): same account, symbol, entry price within tolerance, same minute
+				const minuteStart = new Date(entryTime); minuteStart.setSeconds(0,0);
+				const minuteEnd = new Date(minuteStart); minuteEnd.setMinutes(minuteEnd.getMinutes()+1);
+				const minuteCands: any[] = await prisma.trade.findMany({
+					where: {
+						userId: req.userId,
+						accountId,
+						symbol: yahooSymbol,
+						entryTime: { gte: minuteStart, lt: minuteEnd },
+						NOT: { id: { startsWith: 'topstep_' } }
+					},
+					select: { id: true, size: true, entryPrice: true, direction: true }
+				});
+				const priceTol = 1e-6;
+				const sameMinute = minuteCands.find(c => Math.abs(Number(c.entryPrice) - Number(entryPrice)) < priceTol
+					&& (!direction || !c.direction || String(c.direction).toUpperCase() === direction));
+				if (sameMinute) { matchedExisting++; if (verbose) reasons.push({ topId, symbol: yahooSymbol, reason: 'manual_match_minute', matchedTradeId: sameMinute.id }); continue; }
 			}
 			const data: any = {
 				userId: req.userId,
