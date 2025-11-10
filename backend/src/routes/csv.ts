@@ -193,6 +193,42 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 		return isNaN(n) ? null : n;
 	};
 
+	// Normalize Topstep futures contract to Yahoo Finance convention.
+	// Examples: MESZ5 (Topstep) with entry year 2025 -> MESZ25.CME
+	// Pattern: <ROOT><MONTH><ONE_DIGIT_YEAR>. If year digit matches entryTime year % 10 use that year.
+	// Adds '.CME' suffix for CME futures. If already ends with .CME or contains '=' (continuous) leave unchanged.
+	const normalizeYahooSymbol = (raw: string, entryTime: Date | null): { symbol: string; changed: boolean } => {
+		if (!raw) return { symbol: raw, changed: false };
+		if (/\.CME$/.test(raw) || /=F$/.test(raw)) return { symbol: raw, changed: false }; // Already Yahoo style
+		const m = raw.match(/^([A-Z0-9]+)([FGHJKMNQUVXZ])(\d)$/); // root + month code + single digit year
+		if (!m) return { symbol: raw, changed: false };
+		const [, root, monthCode, yearDigitStr] = m;
+		const yearDigit = parseInt(yearDigitStr, 10);
+		let yearTwo: string;
+		if (entryTime) {
+			const y = entryTime.getFullYear();
+			if (y % 10 === yearDigit) {
+				// Use full year from entryTime (e.g. 2025 -> '25')
+				yearTwo = String(y).slice(-2);
+			} else {
+				// Reconstruct within same decade
+				const decadeStart = Math.floor(y / 10) * 10; // 2020
+				let candidate = decadeStart + yearDigit; // 2020 + 5 = 2025
+				// If candidate < y - 5 assume next decade (handles imports from prior year end crossing)
+				if (candidate < y - 5) candidate += 10;
+				yearTwo = String(candidate).slice(-2);
+			}
+		} else {
+			// Fallback: assume current year context
+			const y = new Date().getFullYear();
+			const decadeStart = Math.floor(y / 10) * 10;
+			const candidate = decadeStart + yearDigit;
+			yearTwo = String(candidate).slice(-2);
+		}
+		const yahoo = `${root}${monthCode}${yearTwo}.CME`;
+		return { symbol: yahoo, changed: yahoo !== raw };
+	};
+
 	try {
 		const text = req.file.buffer.toString('utf8');
 		const { rows } = parseCsv(text);
@@ -214,11 +250,12 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 			if (!symbol || !entryPrice || !size || !entryTime) { skipped++; continue; }
 
 			const direction: 'LONG' | 'SHORT' | null = type.includes('LONG') ? 'LONG' : type.includes('SHORT') ? 'SHORT' : null;
+			const { symbol: yahooSymbol, changed } = normalizeYahooSymbol(symbol, entryTime);
 			const id = topId ? `topstep_${accountId}_${topId}` : undefined;
 			const data: any = {
 				userId: req.userId,
 				accountId,
-				symbol,
+				symbol: yahooSymbol,
 				assetClass: 'FUTURE',
 				size,
 				entryPrice,
@@ -227,7 +264,10 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 				exitTime: exitTime ?? null,
 				fees,
 				direction,
-				notes: (r.TradeDay ? `Topstep TradeDay ${r.TradeDay}` : null)
+				notes: [
+					changed ? `Original Topstep symbol: ${symbol}` : null,
+					r.TradeDay ? `Topstep TradeDay ${r.TradeDay}` : null
+				].filter(Boolean).join(' | ') || null
 			};
 
 			if (id) {
