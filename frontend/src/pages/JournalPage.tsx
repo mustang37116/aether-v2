@@ -158,6 +158,8 @@ function TagEditorInline({ tradeId, initialTags, onChange }: { tradeId:string; i
   );
 }
 
+import { createPortal } from 'react-dom';
+
 function JournalDetail({ trade, onClose }: { trade:any; onClose:()=>void }){
   const derived = deriveFromFills(trade);
   const api = useApi();
@@ -178,7 +180,7 @@ function JournalDetail({ trade, onClose }: { trade:any; onClose:()=>void }){
   }, [trade.id]);
   function isImage(url: string){ return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(url); }
   function fileName(url: string){ try { const u = new URL(`http://x${url}`.replace('http://x/','http://x')); return u.pathname.split('/').pop() || 'file'; } catch { return url.split('/').pop() || 'file'; } }
-  return (
+  const overlay = (
     <div className={`modal-overlay-view ${closing ? 'closing' : ''}`} onClick={handleClose}>
       <ModalContainer onClose={handleClose} labelledById="journal-detail-title" className={`modal ${closing ? 'closing' : ''}`}>
         <div className='modal-scroll'>
@@ -239,6 +241,7 @@ function JournalDetail({ trade, onClose }: { trade:any; onClose:()=>void }){
       </ModalContainer>
     </div>
   );
+  return typeof document !== 'undefined' ? createPortal(overlay, document.body) : overlay;
 }
 
 function EditTradeModal({ trade, onClose, onSaved }: { trade:any; onClose:()=>void; onSaved:()=>void }){
@@ -352,7 +355,7 @@ function EditTradeModal({ trade, onClose, onSaved }: { trade:any; onClose:()=>vo
   const handleClose = () => {
     if (closing) return; setClosing(true); setTimeout(onClose, 180);
   };
-  return (
+  const overlay = (
     <div className={`modal-overlay-edit ${closing ? 'closing' : ''}`} onClick={handleClose}>
       <ModalContainer onClose={handleClose} labelledById='edit-trade-title' className={`modal ${closing ? 'closing' : ''}`}>
         <div className='modal-scroll'>
@@ -486,6 +489,7 @@ function EditTradeModal({ trade, onClose, onSaved }: { trade:any; onClose:()=>vo
       </ModalContainer>
     </div>
   );
+  return typeof document !== 'undefined' ? createPortal(overlay, document.body) : overlay;
 }
 
 function Metric({ label, value }: { label:string; value:any }){

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { useApi } from '../hooks/useApi';
 import ModalContainer from './ModalContainer';
+import { createPortal } from 'react-dom';
 
 export default function RecentTrades({ accountId, start, end, limit=10 }: { accountId?: string; start?: string; end?: string; limit?: number }) {
   const api = useApi();
@@ -64,7 +65,7 @@ export default function RecentTrades({ accountId, start, end, limit=10 }: { acco
 function TradeDetail({ trade, onClose }: { trade:any; onClose:()=>void }){
   const [closing, setClosing] = useState(false);
   const handleClose = () => { if (closing) return; setClosing(true); setTimeout(onClose, 180); };
-  return (
+  const overlay = (
     <div className={`modal-overlay-view ${closing ? 'closing' : ''}`} onClick={handleClose}>
       <ModalContainer onClose={handleClose} labelledById='recent-trade-title' className={`modal ${closing ? 'closing' : ''}`}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
@@ -98,6 +99,7 @@ function TradeDetail({ trade, onClose }: { trade:any; onClose:()=>void }){
       </ModalContainer>
     </div>
   );
+  return typeof document !== 'undefined' ? createPortal(overlay, document.body) : overlay;
 }
 import TradeChart from './TradeChart';
 

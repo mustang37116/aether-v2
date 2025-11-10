@@ -133,7 +133,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
   if (loading) return <div>Loading fees...</div>;
   if (error) return <div style={{ color: 'red' }}>{error}</div>;
 
-  return <div style={{ maxWidth: 760 }}>
+  return <div className='account-settings'>
     <h2 style={{marginTop:0, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
       <div>{account?.name || 'Account'} <span style={{fontSize:14, opacity:.6}}>{account?.currency}</span></div>
       {account && <button style={{background:'#3b0b0b'}} onClick={async()=>{
@@ -147,7 +147,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
         }
       }}>Delete Account</button>}
     </h2>
-    <div style={{display:'flex', gap:8, flexWrap:'wrap', marginBottom:12}}>
+  <div className='settings-row' style={{marginBottom:12}}>
       {account && <>
         <button type='button' onClick={async()=>{
           const url = apiUrl(`/csv/trades?accountId=${account.id}`);
@@ -233,7 +233,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
       </>}
     </div>
     <h3 style={{margin:'16px 0 8px'}}>Fees</h3>
-    <div style={{display:'flex', gap:8, flexWrap:'wrap', marginBottom:8}}>
+  <div className='settings-row' style={{marginBottom:8}}>
       <input type='number' step='0.01' placeholder='Futures MINI fee ($/contract)' value={miniFee} onChange={e=>setMiniFee(e.target.value)} />
       <input type='number' step='0.01' placeholder='Futures MICRO fee ($/contract)' value={microFee} onChange={e=>setMicroFee(e.target.value)} />
     </div>
@@ -260,7 +260,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
         </tr>)}
       </tbody>
     </table>
-    <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+  <div className='settings-row' style={{ marginTop: 12 }}>
       <button disabled={saving} onClick={save}>{saving ? 'Saving...' : 'Save & Recalc'}</button>
       {account && <button type='button' onClick={async()=>{
         try {
@@ -275,7 +275,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
 
     <h3 style={{margin:'24px 0 8px'}}>Per-Ticker Overrides</h3>
     <p style={{fontSize:12, color:'#666', marginTop:0}}>Overrides take precedence over mini/micro defaults and asset-class matrix. Leave a row at 0 to effectively disable it (or remove).</p>
-    <div style={{marginBottom:8}}>
+  <div style={{marginBottom:8}} className='settings-row'>
       <button type='button' onClick={addTickerFee}>Add Symbol Override</button>
     </div>
     <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom:12 }}>
@@ -315,7 +315,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
 
     <h3 style={{margin:'24px 0 8px'}}>Transactions</h3>
     {txMsg && <div style={{marginBottom:8, color: txMsg==='Saved' ? '#9ae6b4' : '#f56565'}}>{txMsg}</div>}
-    <div style={{display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
+    <div className='settings-row' style={{alignItems:'center'}}>
       <select value={txType} onChange={e=>setTxType(e.target.value as any)}>
         <option value='DEPOSIT'>Deposit</option>
         <option value='WITHDRAWAL'>Withdrawal</option>
