@@ -57,18 +57,54 @@ export default function JournalPage(){
             <strong>Journal render error:</strong> {fatal} (check console)
           </div>
         )}
-        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:12}}>
-          {!fatal && trades.map(t => {
-            try {
-              if (!t || !t.id) return null;
-              return <JournalCard key={t.id} trade={t} onView={()=>setSelected(t)} onEdit={()=>setEditingTrade(t)} />;
-            } catch(e:any){
-              console.error('JournalCard render failed', e, t);
-              setFatal(e?.message || 'Unknown error');
-              return null;
-            }
-          })}
-        </div>
+        {/* Partition trades: open first then closed */}
+        {(() => {
+          const sumQty = (fills:any[], type:'ENTRY'|'EXIT') => fills.filter(f=>f.type===type).reduce((s:number,f:any)=> s + Number(f.size||0), 0);
+          const open: any[] = []; const closed: any[] = [];
+          for (const tr of trades) {
+            const fills = Array.isArray(tr.tradeFills) ? tr.tradeFills : [];
+            const qtyEntry = sumQty(fills,'ENTRY');
+            const qtyExit = sumQty(fills,'EXIT');
+            const isClosed = qtyEntry > 0 ? qtyExit >= qtyEntry : (tr.exitPrice != null);
+            (isClosed ? closed : open).push(tr);
+          }
+          return <div style={{display:'flex', flexDirection:'column', gap:16}}>
+            {open.length > 0 && (
+              <>
+                <h3 style={{margin:'8px 4px', opacity:0.9}}>Open Trades</h3>
+                <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:12}}>
+                  {!fatal && open.map(t => {
+                    try {
+                      if (!t || !t.id) return null;
+                      return <JournalCard key={t.id} trade={t} onView={()=>setSelected(t)} onEdit={()=>setEditingTrade(t)} />;
+                    } catch(e:any){
+                      console.error('JournalCard render failed', e, t);
+                      setFatal(e?.message || 'Unknown error');
+                      return null;
+                    }
+                  })}
+                </div>
+              </>
+            )}
+            {closed.length > 0 && (
+              <>
+                <h3 style={{margin:'12px 4px', opacity:0.9}}>Closed Trades</h3>
+                <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:12}}>
+                  {!fatal && closed.map(t => {
+                    try {
+                      if (!t || !t.id) return null;
+                      return <JournalCard key={t.id} trade={t} onView={()=>setSelected(t)} onEdit={()=>setEditingTrade(t)} />;
+                    } catch(e:any){
+                      console.error('JournalCard render failed', e, t);
+                      setFatal(e?.message || 'Unknown error');
+                      return null;
+                    }
+                  })}
+                </div>
+              </>
+            )}
+          </div>;
+        })()}
         {!loading && trades.length === 0 && (
           <div style={{textAlign:'center', padding:20, fontSize:12, opacity:.7}}>No trades found.</div>
         )}
