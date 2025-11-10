@@ -16,6 +16,14 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "git-commit-push-account-settings-mobile",
+			"type": "shell",
+			"command": "git add -A && git commit -m \"account settings: mobile responsiveness (scrollable tables, stacked controls)\" && git push origin main",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
 		}
 	]
 }

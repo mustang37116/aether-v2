@@ -237,6 +237,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
       <input type='number' step='0.01' placeholder='Futures MINI fee ($/contract)' value={miniFee} onChange={e=>setMiniFee(e.target.value)} />
       <input type='number' step='0.01' placeholder='Futures MICRO fee ($/contract)' value={microFee} onChange={e=>setMicroFee(e.target.value)} />
     </div>
+    <div className='table-scroll'>
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
         <tr>
@@ -260,6 +261,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
         </tr>)}
       </tbody>
     </table>
+    </div>
   <div className='settings-row' style={{ marginTop: 12 }}>
       <button disabled={saving} onClick={save}>{saving ? 'Saving...' : 'Save & Recalc'}</button>
       {account && <button type='button' onClick={async()=>{
@@ -278,6 +280,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
   <div style={{marginBottom:8}} className='settings-row'>
       <button type='button' onClick={addTickerFee}>Add Symbol Override</button>
     </div>
+    <div className='table-scroll'>
     <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom:12 }}>
       <thead>
         <tr>
@@ -304,6 +307,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
         {!tickerFees.length && <tr><td colSpan={4}><i>No overrides</i></td></tr>}
       </tbody>
     </table>
+    </div>
     {symbols.length > 0 && (
       <details style={{marginBottom:16}}>
         <summary style={{cursor:'pointer'}}>Discovered Symbols ({symbols.length})</summary>
@@ -327,6 +331,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
       </label>
       <button type='button' onClick={submitTx} disabled={!txAmount}>Save</button>
     </div>
+    <div className='table-scroll'>
     <table style={{width:'100%', marginTop:12}} className='trade-table'>
       <thead>
         <tr>
@@ -354,6 +359,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
         )}
       </tbody>
     </table>
+    </div>
   </div>;
 };
 

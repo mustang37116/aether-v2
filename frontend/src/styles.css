@@ -311,6 +311,24 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .account-settings h2, .account-settings h3 { font-weight:600; }
 .account-settings .settings-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .account-settings table { width:100%; }
+.account-settings .table-scroll { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid rgba(255,255,255,0.08); border-radius:12px; }
+.account-settings .table-scroll table { margin:0; min-width:520px; }
+@media (max-width: 640px){
+	.account-settings h2 { font-size:20px; }
+	.account-settings .settings-row { flex-direction: row; }
+	.account-settings button, .account-settings input, .account-settings select { flex: 1 1 auto; min-width:140px; }
+	.account-settings .settings-row > label { flex:1 1 160px; }
+	.account-settings .table-scroll { margin-bottom:16px; }
+	.account-settings p { line-height:1.3; }
+}
+@media (max-width: 480px){
+	.account-settings button, .account-settings input, .account-settings select { flex: 1 1 100%; min-width:0; }
+	.account-settings .settings-row { gap:6px; }
+	.account-settings .settings-row > * { flex:1 0 48%; }
+	.account-settings .settings-row > button { flex:1 0 100%; }
+	.account-settings .table-scroll table { font-size:12px; }
+	.account-settings th, .account-settings td { padding:6px 8px !important; }
+}
 .modal.modal-long {
 	/* Provide slight top margin when long to avoid feeling glued */
 	margin-top: 8px;
