@@ -94,6 +94,8 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
       await api.put(`/accounts/${accountId}/ticker-fees`, { fees: tickerFees.map(tf=>({ symbol: tf.symbol, mode: tf.mode, value: tf.value })) });
       const tfRes = await api.get(`/accounts/${accountId}/ticker-fees`).then(r=>r.data);
       setTickerFees((tfRes.overrides || []).map((o:any)=>({ id:o.id, symbol:o.symbol, mode:o.mode, value:Number(o.value) })));
+      // Recalculate on save
+      await api.post(`/accounts/${accountId}/recalc-fees`, {});
     } catch (e: any) { setError(e.message || 'save failed'); }
     finally { setSaving(false); }
   };

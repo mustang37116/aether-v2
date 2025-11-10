@@ -97,6 +97,13 @@ Notes:
 - Futures defaults are interpreted as ROUND-TRIP per realized contract. For open trades (no exit), fee accrual is deferred.
 - Per-ticker overrides take precedence over all defaults and matrix rules.
 
+Unified implementation:
+- Backend utility `backend/src/utils/fees.ts` exposes:
+	- `computeFeesForTrade(trade, account, preloaded?)`: returns numeric fee using the precedence above. Fills-aware, handles percent and dollar modes, futures round-trip semantics.
+	- `recalcAccountFees(accountId)`: batch recomputes all trade fees for an account.
+- Endpoint: `POST /accounts/:id/recalc-fees` to trigger a full recomputation on demand.
+- Automatic triggers: after changing account defaults (PATCH /accounts/:id) or asset-class fees (PUT /accounts/:id/fees). Frontend also calls recalc after saving ticker overrides.
+
 ### Futures PnL computation
 Centralized in `backend/src/utils/pnl.ts`:
 - Point value multipliers:
@@ -149,6 +156,7 @@ Accounts
 - `GET /accounts`, `POST /accounts`, `GET /accounts/:id`, `PATCH /accounts/:id`, `DELETE /accounts/:id`
 - Per-asset-class fees: `GET /accounts/:id/fees`, `PUT /accounts/:id/fees`
 - Per-ticker fee overrides: `GET /accounts/:id/ticker-fees`, `PUT /accounts/:id/ticker-fees`
+- Recalculate fees: `POST /accounts/:id/recalc-fees`
 
 Trades & fills
 - `GET /trades`, `POST /trades`, `PATCH /trades/:id`, `DELETE /trades/:id`
@@ -180,6 +188,7 @@ Settings & Tags
 	- Export CSVs (trades, transactions, account bundle)
 	- Import CSVs (trades, Topstep with explain, transactions)
 	- Edit fees (mini/micro defaults, per-asset-class matrix, per-ticker overrides)
+	- Save & Recalc button, and a manual Recalculate Fees action
 	- Manage transactions with `datetime-local` input
 
 ## Data deletion/cascade
