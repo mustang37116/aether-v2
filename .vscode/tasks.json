@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "git-commit-push-theme-mobile-filters",
+			"type": "shell",
+			"command": "git add -A && git commit -m \"theming: add background gradients per theme + auto-apply on login; UI: instant theme preview; dashboard: responsive filters for mobile (account/date inputs wrap & shrink)\" && git push origin main",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

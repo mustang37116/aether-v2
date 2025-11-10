@@ -41,6 +41,25 @@ export function AuthProvider({ children }: { children: any }) {
     if (token) localStorage.setItem('token', token); else localStorage.removeItem('token');
   }, [token]);
 
+  // Auto-apply theme from server settings whenever we're authenticated
+  useEffect(() => {
+    let didCancel = false;
+    async function loadTheme(){
+      if (!token) return; // unauthenticated
+      try {
+        const res = await axios.get(`${API_ROOT}/settings`, { headers: { Authorization: `Bearer ${token}` } });
+        const t: string | null = res.data?.settings?.theme || null;
+        if (!didCancel) {
+          applyTheme(t);
+        }
+      } catch (e) {
+        // Ignore; fall back to localStorage theme
+      }
+    }
+    loadTheme();
+    return () => { didCancel = true; };
+  }, [token]);
+
   async function register(email: string, password: string) {
     try {
   const res = await axios.post(`${API_ROOT}/auth/register`, { email, password });

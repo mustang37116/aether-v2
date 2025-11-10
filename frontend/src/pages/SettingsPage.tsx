@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useApi } from '../hooks/useApi';
+import { useAuth } from '../context/AuthContext';
 
 export default function SettingsPage(){
   const api = useApi();
+  const { applyTheme } = useAuth();
   // Theme options (keys must match CSS .theme-* classes)
   const themeOptions = ['aurora','solar','emerald','amethyst','ocean','mono'];
   const [baseCurrency, setBaseCurrency] = useState('USD');
@@ -90,7 +92,7 @@ export default function SettingsPage(){
           </label>
           <label style={{display:'grid', gap:4}}>
             <span>Theme</span>
-            <select value={theme} onChange={e=> setTheme(e.target.value)}>
+            <select value={theme} onChange={e=> { const t = e.target.value; setTheme(t); applyTheme(t); }}>
               {themeOptions.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
             <span style={{fontSize:11, opacity:.55}}>Themes apply a color palette over the same glass surfaces.</span>

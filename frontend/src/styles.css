@@ -7,25 +7,47 @@
 	--accent: #5ac8fa;
 	--pos: #20c997;
 	--neg: #ef4444;
+	/* Background gradient layers (override per theme) */
+	--bg-radial-a: #1f2a44; /* top-left hue */
+	--bg-radial-b: #4c1d95; /* top-right hue */
+	--bg-radial-c: #0e7490; /* bottom-left hue */
+	--bg-linear-start: #0b0d10;
+	--bg-linear-end: #0f172a;
+	--glow-1: rgba(90,200,250,0.16);
+	--glow-2: rgba(16,185,129,0.12);
 	/* Dynamic viewport unit; updated via JS and falls back to dvh */
 	--app-vh: 1dvh;
 }
 /* Theme variants (inherit glass styling, override palette) */
 .theme-aurora {
-	--bg: #0a1014;
+	--bg: #090f17;
 	--accent: #5ac8fa;
 	--pos: #34d399;
 	--neg: #f87171;
 	--glass-bg: rgba(255,255,255,0.08);
 	--glass-border: rgba(255,255,255,0.14);
+	--bg-radial-a: #14354b;
+	--bg-radial-b: #253b73;
+	--bg-radial-c: #0d5a66;
+	--bg-linear-start: #0a1014;
+	--bg-linear-end: #101b2b;
+	--glow-1: rgba(90,200,250,0.18);
+	--glow-2: rgba(52,211,153,0.14);
 }
 .theme-solar {
-	--bg: #11100b;
+	--bg: #13110a;
 	--accent: #fbbf24;
 	--pos: #4ade80;
 	--neg: #ef4444;
 	--glass-bg: rgba(255,255,255,0.07);
 	--glass-border: rgba(255,255,255,0.18);
+	--bg-radial-a: #5a420e;
+	--bg-radial-b: #7a3f12;
+	--bg-radial-c: #8a5d17;
+	--bg-linear-start: #11100b;
+	--bg-linear-end: #2d210f;
+	--glow-1: rgba(251,191,36,0.18);
+	--glow-2: rgba(234,179,8,0.14);
 }
 .theme-emerald {
 	--bg: #041712;
@@ -34,22 +56,43 @@
 	--neg: #dc2626;
 	--glass-bg: rgba(255,255,255,0.06);
 	--glass-border: rgba(255,255,255,0.22);
+	--bg-radial-a: #064e3b;
+	--bg-radial-b: #065f46;
+	--bg-radial-c: #046c55;
+	--bg-linear-start: #041712;
+	--bg-linear-end: #053025;
+	--glow-1: rgba(16,185,129,0.20);
+	--glow-2: rgba(34,211,238,0.18);
 }
 .theme-amethyst {
-	--bg: #120a18;
+	--bg: #160b22;
 	--accent: #a855f7;
 	--pos: #6ee7b7;
 	--neg: #f43f5e;
 	--glass-bg: rgba(255,255,255,0.08);
 	--glass-border: rgba(255,255,255,0.20);
+	--bg-radial-a: #35144b;
+	--bg-radial-b: #4b1773;
+	--bg-radial-c: #6b1d95;
+	--bg-linear-start: #120a18;
+	--bg-linear-end: #27133b;
+	--glow-1: rgba(168,85,247,0.22);
+	--glow-2: rgba(244,63,94,0.16);
 }
 .theme-ocean {
-	--bg: #07131d;
+	--bg: #06121c;
 	--accent: #0ea5e9;
 	--pos: #10b981;
 	--neg: #f87171;
 	--glass-bg: rgba(255,255,255,0.07);
 	--glass-border: rgba(255,255,255,0.16);
+	--bg-radial-a: #0d3353;
+	--bg-radial-b: #0c4a6e;
+	--bg-radial-c: #0b5b85;
+	--bg-linear-start: #07131d;
+	--bg-linear-end: #0d2535;
+	--glow-1: rgba(14,165,233,0.22);
+	--glow-2: rgba(16,185,129,0.14);
 }
 .theme-mono {
 	--bg: #0e0e10;
@@ -58,6 +101,13 @@
 	--neg: #f87171;
 	--glass-bg: rgba(255,255,255,0.05);
 	--glass-border: rgba(255,255,255,0.12);
+	--bg-radial-a: #242424;
+	--bg-radial-b: #1c1c1c;
+	--bg-radial-c: #131313;
+	--bg-linear-start: #0e0e10;
+	--bg-linear-end: #1c1c1e;
+	--glow-1: rgba(156,163,175,0.18);
+	--glow-2: rgba(107,114,128,0.12);
 }
 *{ box-sizing: border-box; }
 html, body, #root { height: 100%; }
@@ -66,12 +116,18 @@ html { overflow-x: hidden; }
 main, .app-shell, .dashboard-root { max-width: 1280px; margin: 0 auto; }
 /* Prevent horizontal overflow site-wide (individual components can scroll internally) */
 body { overflow-x: hidden; }
-body { margin:0; font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background: radial-gradient(1200px 800px at 20% -10%, #1f2a44 0%, transparent 60%), radial-gradient(1000px 600px at 120% 20%, #4c1d95 0%, transparent 60%), radial-gradient(800px 800px at -10% 110%, #0e7490 0%, transparent 60%), linear-gradient(135deg,#0b0d10 0%, #0f172a 100%); color: var(--text); }
+body { margin:0; font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:
+	radial-gradient(1200px 800px at 20% -10%, var(--bg-radial-a) 0%, transparent 60%),
+	radial-gradient(1000px 600px at 120% 20%, var(--bg-radial-b) 0%, transparent 60%),
+	radial-gradient(800px 800px at -10% 110%, var(--bg-radial-c) 0%, transparent 60%),
+	linear-gradient(135deg, var(--bg-linear-start) 0%, var(--bg-linear-end) 100%);
+	color: var(--text);
+}
 body::before{
 	content:'';
 	position: fixed; inset: 0; pointer-events: none;
-	background: radial-gradient(500px 300px at 70% 10%, rgba(90,200,250,0.16), transparent 60%),
-							radial-gradient(400px 280px at 10% 70%, rgba(16,185,129,0.12), transparent 60%);
+	background: radial-gradient(500px 300px at 70% 10%, var(--glow-1), transparent 60%),
+						radial-gradient(400px 280px at 10% 70%, var(--glow-2), transparent 60%);
 	filter: blur(40px);
 }
 a { color: var(--text); }

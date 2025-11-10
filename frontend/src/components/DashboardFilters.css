@@ -2,16 +2,23 @@
 .filter-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch; padding:8px 6px}
 .filter-scroll::-webkit-scrollbar{height:6px}
 .filter-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:6px}
-.filter-group{display:flex;gap:10px;align-items:center;white-space:nowrap}
-.filter-item{display:grid;gap:4px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.16);border-radius:999px;padding:6px 10px}
+.filter-group{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.filter-item{display:grid;gap:4px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.16);border-radius:12px;padding:6px 10px}
 .filter-label{font-size:11px;opacity:.7}
-.filter-item select,.filter-item input{background:transparent;border:none;padding:0 2px;min-width:120px}
+.filter-item select,.filter-item input{background:transparent;border:none;padding:0 2px;min-width:0;max-width:100%}
 .filter-item select:focus,.filter-item input:focus{outline:none;box-shadow:none}
-.quick-range{display:flex;gap:6px;margin-left:4px}
+.quick-range{display:flex;gap:6px;margin-left:4px;flex-wrap:wrap}
 .quick-range button{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.16);color:inherit;border-radius:999px;padding:6px 10px}
 .quick-range button:hover{background:rgba(255,255,255,0.12)}
 .clear-btn{margin-left:6px}
 @media (max-width:720px){
   .filter-item{padding:6px 8px}
-  .filter-item select,.filter-item input{min-width:100px}
+  .filter-item select,.filter-item input{min-width:0}
+}
+@media (max-width:480px){
+  .filter-group{gap:8px}
+  .filter-item{padding:6px 8px}
+  .filter-item select,.filter-item input{width:130px}
+  .filter-label{font-size:10px}
+  .clear-btn{flex:1 0 100%}
 }
