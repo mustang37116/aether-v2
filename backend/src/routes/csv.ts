@@ -238,6 +238,7 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 		const text = req.file.buffer.toString('utf8');
 		const { rows } = parseCsv(text);
 		let imported = 0; let updated = 0; let skipped = 0; let duplicates = 0; let fillsCreated = 0;
+		let matchedExisting = 0;
 		for (const r of rows) {
 			// Map Topstep columns
 			const topId = (r.Id || r.id || '').toString().trim();
@@ -267,6 +268,26 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 				// Only import new trades: skip if already present
 				const exists = await prisma.trade.findFirst({ where: { id } });
 				if (exists) { duplicates++; continue; }
+			}
+
+			// Content-based dedupe: avoid importing a trade that already exists manually
+			// Match on same account, symbol, size, entryPrice and entryTime within ±60s window
+			if (entryTime) {
+				const windowStart = new Date(entryTime.getTime() - 60_000);
+				const windowEnd = new Date(entryTime.getTime() + 60_000);
+				const candidates: any[] = await prisma.trade.findMany({
+					where: {
+						userId: req.userId,
+						accountId,
+						symbol: yahooSymbol,
+						entryTime: { gte: windowStart, lte: windowEnd }
+					},
+					select: { id: true, size: true, entryPrice: true, direction: true }
+				});
+				const same = candidates.find(c => Number(c.size) === Number(size)
+					&& Math.abs(Number(c.entryPrice) - Number(entryPrice)) < 1e-6
+					&& (!direction || !c.direction || String(c.direction).toUpperCase() === direction));
+				if (same) { matchedExisting++; continue; }
 			}
 			const data: any = {
 				userId: req.userId,
@@ -307,8 +328,8 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 									}
 								} catch {}
 							}
-		}
-						res.json({ imported, updated, skipped: skipped + duplicates, fillsCreated });
+					}
+						res.json({ imported, updated, skipped: skipped + duplicates + matchedExisting, duplicates, matchedExisting, fillsCreated });
 	} catch (e: any) {
 		console.error(e);
 		res.status(500).json({ error: 'topstep import failed', detail: e.message });
