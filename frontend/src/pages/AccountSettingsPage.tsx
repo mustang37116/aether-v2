@@ -17,6 +17,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
   const [miniFee, setMiniFee] = useState<string>('');
   const [microFee, setMicroFee] = useState<string>('');
   const [account, setAccount] = useState<any>(null);
+  const [accountName, setAccountName] = useState<string>('');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [tickerFees, setTickerFees] = useState<TickerFee[]>([]);
   const [symbols, setSymbols] = useState<string[]>([]);
@@ -61,6 +62,7 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
         }));
         if (mounted) {
           setAccount(acct);
+          setAccountName(acct?.name || '');
           setMiniFee(acct.defaultFeePerMiniContract != null ? String(acct.defaultFeePerMiniContract) : '');
           setMicroFee(acct.defaultFeePerMicroContract != null ? String(acct.defaultFeePerMicroContract) : '');
           setFees(merged as FeeRow[]);
@@ -134,8 +136,35 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
   if (error) return <div style={{ color: 'red' }}>{error}</div>;
 
   return <div className='account-settings'>
-    <h2 style={{marginTop:0, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-      <div>{account?.name || 'Account'} <span style={{fontSize:14, opacity:.6}}>{account?.currency}</span></div>
+    <h2 style={{marginTop:0, display:'flex', justifyContent:'space-between', alignItems:'center', gap:8}}>
+      <div style={{display:'flex', alignItems:'center', gap:8, flexWrap:'wrap'}}>
+        <input
+          type='text'
+          value={accountName}
+          onChange={e=>setAccountName(e.target.value)}
+          placeholder='Account name'
+          style={{fontSize:18, padding:'4px 8px', minWidth:200}}
+        />
+        <span style={{fontSize:14, opacity:.6}}>{account?.currency}</span>
+        {account && (
+          <button
+            type='button'
+            disabled={!accountName || accountName.trim() === '' || accountName.trim() === account?.name}
+            onClick={async()=>{
+              const newName = accountName.trim();
+              if (!newName || !account) return;
+              try {
+                const updated = await api.patch(`/accounts/${account.id}`, { name: newName }).then(r=>r.data);
+                setAccount((a:any)=> ({...a, name: updated.name}));
+                setAccountName(updated.name || newName);
+                alert('Account renamed');
+              } catch(e:any){
+                alert('Rename failed: '+(e?.message||'unknown'));
+              }
+            }}
+          >Rename</button>
+        )}
+      </div>
       {account && <button style={{background:'#3b0b0b'}} onClick={async()=>{
         if (!confirm(`Delete account "${account.name}" and all its trades & transactions? This cannot be undone.`)) return;
   const r = await fetch(apiUrl(`/accounts/${account.id}`), { method:'DELETE', headers:{ Authorization: `Bearer ${localStorage.getItem('token')||''}` }});

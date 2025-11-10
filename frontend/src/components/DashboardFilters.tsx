@@ -29,7 +29,7 @@ export default function DashboardFilters({ value, onChange }: { value: Filters; 
             <span className='filter-label'>End</span>
             <input type='date' value={value.end || ''} onChange={e=>onChange({ ...value, end: e.target.value || undefined })} />
           </label>
-          <button type='button' className='clear-btn' onClick={()=>onChange({})}>Clear</button>
+          {/* Clear button removed per request */}
         </div>
       </div>
     </div>
