@@ -12,6 +12,8 @@
 }
 *{ box-sizing: border-box; }
 html, body, #root { height: 100%; }
+/* Guard against any fractional subpixel overflow on mobile */
+html { overflow-x: hidden; }
 main, .app-shell, .dashboard-root { max-width: 1280px; margin: 0 auto; }
 /* Prevent horizontal overflow site-wide (individual components can scroll internally) */
 body { overflow-x: hidden; }
@@ -131,6 +133,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 	padding: var(--pad-top) var(--pad-right) var(--pad-bottom) var(--pad-left);
 	opacity: 0; animation: overlayFadeIn 180ms ease-out forwards;
 	overflow-y: auto;
+	overflow-x: hidden; /* prevent tiny horizontal scroll due to subpixel rounding */
 }
 
 @media (min-width: 1000px) {
@@ -153,7 +156,8 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Modals (view + edit) narrower default for better mobile centering */
 .modal {
-	width: min(640px, calc(100vw - var(--pad-left) - var(--pad-right)));
+	/* Avoid 100vw math that can cause subpixel overflow on some mobiles */
+	width: min(640px, 100%);
 	max-height: min(900px, calc(var(--app-vh, 1dvh) * 100 - var(--pad-top) - var(--pad-bottom)));
 	display: flex; flex-direction: column; overflow: hidden;
 	background: linear-gradient(165deg, rgba(30,34,42,0.94), rgba(22,26,34,0.92));
@@ -220,12 +224,13 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Ultra narrow devices: reduce side padding & radius for better fit */
 @media (max-width: 420px) {
-	.modal { width: 100%; border-radius: 14px; padding: 18px 18px 20px; left: 50%; transform: translate(-50%,0); }
+	/* Keep centered via margin auto only; left/transform can introduce tiny drift */
+	.modal { width: 100%; border-radius: 14px; padding: 18px 18px 20px; margin-left: auto; margin-right: auto; }
 }
 
 /* Ensure perfect centering on narrow iPhone widths: if viewport < 380px expand modal full width */
 @media (max-width: 380px) {
-	.modal { width: 100%; margin-left: 0; margin-right: 0; left: 50%; transform: translate(-50%,0); }
+	.modal { width: 100%; margin-left: auto; margin-right: auto; }
 }
 
 /* Guard against any accidental horizontal drift: center children inside modal-scroll */
