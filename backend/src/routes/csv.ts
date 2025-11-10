@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { computeDirectionalPnl } from '../utils/pnl.js';
+import { createHash } from 'crypto';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import multer from 'multer';
 
@@ -239,7 +240,7 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 		let imported = 0; let updated = 0; let skipped = 0; let duplicates = 0; let fillsCreated = 0;
 		for (const r of rows) {
 			// Map Topstep columns
-			const topId = (r.Id || r.id || '').trim();
+			const topId = (r.Id || r.id || '').toString().trim();
 			const symbol = (r.ContractName || r.symbol || '').trim();
 			const entryTime = parseTopstepDate(r.EnteredAt || r.entryTime || r.EntryTime);
 			const exitTime = parseTopstepDate(r.ExitedAt || r.exitTime || r.ExitTime);
@@ -254,13 +255,19 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 			if (!symbol || !entryPrice || !size || !entryTime) { skipped++; continue; }
 
 			const direction: 'LONG' | 'SHORT' | null = type.includes('LONG') ? 'LONG' : type.includes('SHORT') ? 'SHORT' : null;
-					const { symbol: yahooSymbol } = normalizeYahooSymbol(symbol, entryTime);
-					const id = topId ? `topstep_${accountId}_${topId}` : undefined;
-					if (id) {
-						// Only import new trades: skip if already present
-						const exists = await prisma.trade.findFirst({ where: { id } });
-						if (exists) { duplicates++; continue; }
-					}
+			const { symbol: yahooSymbol } = normalizeYahooSymbol(symbol, entryTime);
+			// Build a stable id: prefer Topstep Id; else derive from key fields to dedupe re-imports
+			const derivedKey = !topId && entryTime && entryPrice != null && size != null
+				? createHash('sha1').update([
+					'v1', String(accountId), yahooSymbol, String(entryPrice), String(size), entryTime.toISOString(), direction || ''
+				].join('|')).digest('hex').slice(0, 16)
+				: null;
+			const id = topId ? `topstep_${accountId}_${topId}` : (derivedKey ? `topstep_${accountId}_${derivedKey}` : undefined);
+			if (id) {
+				// Only import new trades: skip if already present
+				const exists = await prisma.trade.findFirst({ where: { id } });
+				if (exists) { duplicates++; continue; }
+			}
 			const data: any = {
 				userId: req.userId,
 				accountId,
