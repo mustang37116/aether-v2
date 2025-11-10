@@ -271,16 +271,18 @@ router.post('/topstep/import', upload.single('file'), async (req: AuthRequest, r
 			}
 
 			// Content-based dedupe: avoid importing a trade that already exists manually
-			// Match on same account, symbol, size, entryPrice and entryTime within ±60s window
-			if (entryTime) {
-				const windowStart = new Date(entryTime.getTime() - 60_000);
-				const windowEnd = new Date(entryTime.getTime() + 60_000);
+			// Only apply when there is NO Topstep Id (since Topstep Id already guarantees uniqueness)
+			// Match on same account, symbol, size, entryPrice and entryTime within a small window (±5s)
+			if (!topId && entryTime) {
+				const windowStart = new Date(entryTime.getTime() - 5_000);
+				const windowEnd = new Date(entryTime.getTime() + 5_000);
 				const candidates: any[] = await prisma.trade.findMany({
 					where: {
 						userId: req.userId,
 						accountId,
 						symbol: yahooSymbol,
-						entryTime: { gte: windowStart, lte: windowEnd }
+						entryTime: { gte: windowStart, lte: windowEnd },
+						NOT: { id: { startsWith: 'topstep_' } } // only treat truly manual trades as matches
 					},
 					select: { id: true, size: true, entryPrice: true, direction: true }
 				});
