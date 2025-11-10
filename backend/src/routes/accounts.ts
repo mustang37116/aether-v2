@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
+import { recalcAccountFees } from '../utils/fees.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -118,6 +119,15 @@ router.put('/:id/ticker-fees', async (req: AuthRequest, res: Response) => {
   res.json({ updated: results.length, results });
 });
 
+// Trigger a full fees recomputation for an account
+router.post('/:id/recalc-fees', async (req: AuthRequest, res: Response) => {
+  const { id } = req.params as any;
+  const account = await prisma.account.findFirst({ where: { id, userId: req.userId } });
+  if (!account) return res.status(404).json({ error: 'Not found' });
+  const result = await recalcAccountFees(id);
+  res.json(result);
+});
+
 router.post('/', async (req: AuthRequest, res: Response) => {
   const { name, currency, defaultFeePerMiniContract, defaultFeePerMicroContract } = req.body as any;
   const data: any = { name, currency: currency || 'USD', userId: req.userId! };
@@ -140,7 +150,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
   const updated = await prisma.account.update({ where: { id }, data });
   // Recalc fees on all trades for this account when defaults change
   if (defaultFeePerMiniContract !== undefined || defaultFeePerMicroContract !== undefined){
-    await recalcFeesForAccount(id);
+    await recalcAccountFees(id);
   }
   res.json(updated);
 });
@@ -199,7 +209,7 @@ router.put('/:id/fees', async (req: AuthRequest, res: Response) => {
   }
   const rows = await (prisma as any).accountFee.findMany({ where: { accountId: id } });
   // Recalc fees on all trades for this account when matrix changes
-  await recalcFeesForAccount(id);
+  await recalcAccountFees(id);
   res.json({ fees: rows });
 });
 

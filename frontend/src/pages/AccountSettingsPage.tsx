@@ -259,9 +259,17 @@ export const AccountSettingsPage: React.FC<{ accountId: string }> = ({ accountId
       </tbody>
     </table>
     <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-      <button disabled={saving} onClick={save}>{saving ? 'Saving...' : 'Save Fees'}</button>
+      <button disabled={saving} onClick={save}>{saving ? 'Saving...' : 'Save & Recalc'}</button>
+      {account && <button type='button' onClick={async()=>{
+        try {
+          const r = await api.post(`/accounts/${account.id}/recalc-fees`,{}).then(r=>r.data);
+          alert(`Recalculated fees on ${r.updated} trades`);
+        } catch(e:any){ alert('Recalc failed: '+(e.message||'unknown')); }
+      }}>Recalculate Fees</button>}
     </div>
-    <p style={{ fontSize: 12, color: '#666' }}>Percent mode applies value% of notional (entryPrice * size). Dollar mode applies flat value per contract/share. Futures mini/micro explicit defaults may override if set in trade form logic.</p>
+    <p style={{ fontSize: 12, color: '#666' }}>
+      Fee precedence: Ticker Override &gt; Futures Mini/Micro Defaults (round-trip realized contracts) &gt; Asset-Class Matrix. Dollar (contract/share) for non-futures counts sides; futures defaults/ticker dollar overrides are round-trip only on realized quantity. Percent applies per side on notional.
+    </p>
 
     <h3 style={{margin:'24px 0 8px'}}>Per-Ticker Overrides</h3>
     <p style={{fontSize:12, color:'#666', marginTop:0}}>Overrides take precedence over mini/micro defaults and asset-class matrix. Leave a row at 0 to effectively disable it (or remove).</p>
