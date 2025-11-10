@@ -11,6 +11,8 @@ export function futuresPointValue(symbol?: string): number {
   if (s.startsWith('YM')) return 5;    // E-mini Dow
   if (s.startsWith('M2K')) return 5;   // Micro E-mini Russell 2000
   if (s.startsWith('RTY')) return 50;  // E-mini Russell 2000
+  // Topstep "MET" family observed in CSV (e.g., METX5 -> normalized METX25.CME): ~$0.10 per point
+  if (s.startsWith('MET')) return 0.1;
   // Default equity/crypto/forex stocks behave as $1 per point
   return 1;
 }

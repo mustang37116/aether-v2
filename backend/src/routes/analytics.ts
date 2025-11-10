@@ -11,7 +11,8 @@ router.use(requireAuth);
 router.get('/summary', async (req: AuthRequest, res) => {
   const trades = await prisma.trade.findMany({ where: { userId: req.userId } });
   const total = trades.length;
-  const wins = trades.filter(t => t.exitPrice && t.exitPrice > t.entryPrice).length; // naive win def
+  // Win = realized PnL > 0 (direction and multipliers-aware)
+  const wins = trades.filter(t => t.exitPrice && (computeDirectionalPnl(Number(t.entryPrice), Number(t.exitPrice), Number(t.size), (t as any).direction || 'LONG', (t as any).symbol, Number((t as any).fees || 0)) > 0)).length;
   const winRate = total ? wins / total : 0;
   const holdTimes = trades.filter(t => t.exitTime).map(t => (new Date(t.exitTime!).getTime() - t.entryTime.getTime()) / 1000); // seconds
   const avgHoldSeconds = holdTimes.length ? holdTimes.reduce((a,b)=>a+b,0)/holdTimes.length : 0;
@@ -98,7 +99,7 @@ router.get('/equity', async (req: AuthRequest, res) => {
   }
   for (const t of trades) {
     if (t.exitPrice) {
-      const pnl = (Number(t.exitPrice) - Number(t.entryPrice)) * Number(t.size) - Number(t.fees || 0);
+      const pnl = computeDirectionalPnl(Number(t.entryPrice), Number(t.exitPrice), Number(t.size), (t as any).direction || 'LONG', (t as any).symbol, Number((t as any).fees || 0));
       const conv = await convertAmount(t.exitTime || t.entryTime, pnl, t.account.currency, base);
       events.push({ time: t.exitTime || t.entryTime, delta: conv.amount });
     }
@@ -133,7 +134,7 @@ router.get('/calendar', async (req: AuthRequest, res) => {
   };
   for (const t of trades) {
     if (t.exitPrice) {
-      const pnl = (Number(t.exitPrice) - Number(t.entryPrice)) * Number(t.size) - Number(t.fees || 0);
+      const pnl = computeDirectionalPnl(Number(t.entryPrice), Number(t.exitPrice), Number(t.size), (t as any).direction || 'LONG', (t as any).symbol, Number((t as any).fees || 0));
       const conv = await convertAmount(t.exitTime || t.entryTime, pnl, t.account.currency, base);
       add(t.exitTime || t.entryTime, 'pnl', conv.amount);
     }
