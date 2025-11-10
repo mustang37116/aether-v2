@@ -29,7 +29,10 @@ router.get('/trades', async (req: AuthRequest, res) => {
 		orderBy: { entryTime: 'asc' }
 	});
 	const rows = trades.map(t => {
-		const pnl = t.exitPrice ? (Number(t.exitPrice) - Number(t.entryPrice)) * Number(t.size) - Number(t.fees || 0) : null;
+		const dir: any = (t as any).direction || 'LONG';
+		const sym: any = (t as any).symbol;
+		const feesNum = Number((t as any).fees || 0);
+		const pnl = t.exitPrice ? (dir === 'SHORT' ? -1 : 1) * (Number(t.exitPrice) - Number(t.entryPrice)) * Number(t.size) * (sym && sym.toUpperCase().startsWith('MES') ? 5 : sym && sym.toUpperCase().startsWith('ES') ? 50 : sym && sym.toUpperCase().startsWith('MNQ') ? 2 : sym && sym.toUpperCase().startsWith('NQ') ? 20 : 1) - feesNum : null;
 		const tags = t.tradeTags.map(tt => tt.tag.name).join('|');
 		return {
 			id: t.id,

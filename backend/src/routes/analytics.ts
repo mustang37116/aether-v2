@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
+import { computeDirectionalPnl } from '../utils/pnl.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { buildEquityCurveWithTransactions } from '../utils/equity.js';
 import { convertAmount } from '../utils/fx.js';
@@ -33,7 +34,7 @@ async function grouped(req: AuthRequest, groupBy: 'tag' | 'strategy' | 'assetCla
   const map = new Map<string, Row>();
   for (const t of trades) {
     // Determine grouping keys (tag may have multiple entries)
-    const pnlRaw = t.exitPrice ? (Number(t.exitPrice) - Number(t.entryPrice)) * Number(t.size) - Number(t.fees || 0) : 0;
+  const pnlRaw = t.exitPrice ? computeDirectionalPnl(Number(t.entryPrice), Number(t.exitPrice), Number(t.size), t.direction, t.symbol, Number(t.fees || 0)) : 0;
     const pnlConv = t.exitPrice ? (await convertAmount(t.exitTime || t.entryTime, pnlRaw, t.account.currency, base)).amount : 0;
     const riskReward = t.stopPrice && t.targetPrice ? (Number(t.targetPrice) - Number(t.entryPrice)) / (Number(t.entryPrice) - Number(t.stopPrice) || 1) : null;
     const addRow = (key: string) => {

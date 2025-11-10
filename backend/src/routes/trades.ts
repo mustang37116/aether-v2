@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { calcRiskRewardR } from '../utils/risk.js';
+import { computeDirectionalPnl } from '../utils/pnl.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -183,8 +184,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       const avgExit = avgPrice(exitFills);
       const closedQty = Math.min(qtyEntry, qtyExit);
       if (closedQty > 0 && avgEntry != null && avgExit != null) {
-        const dir = t.direction === 'SHORT' ? -1 : 1;
-        pnl = dir * (avgExit - avgEntry) * closedQty - Number(t.fees || 0);
+        pnl = computeDirectionalPnl(avgEntry, avgExit, closedQty, t.direction, t.symbol, Number(t.fees || 0));
       } else {
         pnl = null;
       }
@@ -196,7 +196,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       }
     } else {
       holdTimeSeconds = t.exitTime ? (new Date(t.exitTime).getTime() - t.entryTime.getTime()) / 1000 : null;
-      pnl = t.exitPrice ? (Number(t.exitPrice) - Number(t.entryPrice)) * Number(t.size) - Number(t.fees || 0) : null;
+  pnl = t.exitPrice ? computeDirectionalPnl(Number(t.entryPrice), Number(t.exitPrice), Number(t.size), t.direction, t.symbol, Number(t.fees || 0)) : null;
       if (t.stopPrice && t.targetPrice) {
         metrics = calcRiskRewardR(Number(t.entryPrice), Number(t.stopPrice), Number(t.targetPrice), Number(t.size), t.direction || 'LONG');
       }
@@ -236,8 +236,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
     const avgExit = avgPrice(exitFills);
     const closedQty = Math.min(qtyEntry, qtyExit);
     if (closedQty > 0 && avgEntry != null && avgExit != null) {
-      const dir = t.direction === 'SHORT' ? -1 : 1;
-      pnl = dir * (avgExit - avgEntry) * closedQty - Number(t.fees || 0);
+      pnl = computeDirectionalPnl(avgEntry, avgExit, closedQty, t.direction, t.symbol, Number(t.fees || 0));
     } else {
       pnl = null;
     }
@@ -249,7 +248,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
     }
   } else {
     holdTimeSeconds = t.exitTime ? (new Date(t.exitTime).getTime() - t.entryTime.getTime()) / 1000 : null;
-    pnl = t.exitPrice ? (Number(t.exitPrice) - Number(t.entryPrice)) * Number(t.size) - Number(t.fees || 0) : null;
+  pnl = t.exitPrice ? computeDirectionalPnl(Number(t.entryPrice), Number(t.exitPrice), Number(t.size), t.direction, t.symbol, Number(t.fees || 0)) : null;
     if (t.stopPrice && t.targetPrice) {
       metrics = calcRiskRewardR(Number(t.entryPrice), Number(t.stopPrice), Number(t.targetPrice), Number(t.size), t.direction || 'LONG');
     }
@@ -270,7 +269,7 @@ router.put('/:id/exit', async (req: AuthRequest, res: Response) => {
   const existing = await prisma.trade.findFirst({ where: { id, userId: req.userId } });
   if (!existing) return res.status(404).json({ error: 'trade not found' });
   const updated = await prisma.trade.update({ where: { id }, data: { exitPrice, exitTime: exitTime ? new Date(exitTime) : new Date(), fees } });
-  const pnl = updated.exitPrice ? (Number(updated.exitPrice) - Number(updated.entryPrice)) * Number(updated.size) - Number(updated.fees || 0) : null;
+  const pnl = updated.exitPrice ? computeDirectionalPnl(Number(updated.entryPrice), Number(updated.exitPrice), Number(updated.size), updated.direction, updated.symbol, Number(updated.fees || 0)) : null;
   const holdTimeSeconds = updated.exitTime ? (new Date(updated.exitTime).getTime() - updated.entryTime.getTime()) / 1000 : null;
   res.json({ trade: updated, pnl, holdTimeSeconds });
 });

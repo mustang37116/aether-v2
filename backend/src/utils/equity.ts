@@ -1,4 +1,5 @@
 import { Trade, Transaction } from '@prisma/client';
+import { computeDirectionalPnl } from './pnl.js';
 
 // Legacy simple curve based only on trades (entry time). Kept for backward compatibility.
 export function buildEquityCurve(trades: Trade[]) {
@@ -7,7 +8,7 @@ export function buildEquityCurve(trades: Trade[]) {
   const sorted = trades.slice().sort((a,b)=>a.entryTime.getTime()-b.entryTime.getTime());
   for (const t of sorted) {
     if (t.exitPrice) {
-      const pnl = (Number(t.exitPrice) - Number(t.entryPrice)) * Number(t.size);
+      const pnl = computeDirectionalPnl(Number(t.entryPrice), Number(t.exitPrice), Number(t.size), (t as any).direction || 'LONG', (t as any).symbol, 0);
       cum += pnl;
     }
     points.push({ time: t.entryTime, cumulative: cum });
@@ -30,7 +31,7 @@ export function buildEquityCurveWithTransactions(trades: Trade[], transactions: 
   }
   for (const t of trades) {
     if (t.exitPrice) {
-      const pnl = (Number(t.exitPrice) - Number(t.entryPrice)) * Number(t.size) - Number(t.fees || 0);
+      const pnl = computeDirectionalPnl(Number(t.entryPrice), Number(t.exitPrice), Number(t.size), (t as any).direction || 'LONG', (t as any).symbol, Number((t as any).fees || 0));
       events.push({ time: t.exitTime || t.entryTime, delta: pnl, kind: 'PNL' });
     }
   }
